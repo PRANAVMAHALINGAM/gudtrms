@@ -22,7 +22,7 @@ export const demoIds = { CASE_ID, ALEX, SAM, APT, BISCUIT, COUCH, TV, SPOTIFY } 
 export const demoCase: Case = {
   id: CASE_ID,
   code: '4F7K',
-  status: 'negotiating',
+  status: 'intake', // both have finished intake, so negotiate() can start
   created_at: '2026-10-03T12:00:00Z',
 };
 

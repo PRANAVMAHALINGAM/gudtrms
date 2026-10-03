@@ -280,6 +280,7 @@ leak_events  (id uuid pk, case_id fk, target_participant_id fk, reason text, cre
              -- never store the blocked content in plaintext
 advocate_notes (id uuid pk, case_id fk, proposal_id fk, participant_id fk, note text, created_at)
              -- PRIVATE. Advocate's one-line reasoning per decision. Read ONLY by the judge view.
+             -- In rogue mode it also holds the blocked attempt ("ROGUE: tried to send ... across").
              -- Kept separate so `decisions` stays reason-free.
 ```
 
@@ -289,7 +290,7 @@ advocate_notes (id uuid pk, case_id fk, proposal_id fk, participant_id fk, note 
 
 These must exist for the demo:
 - **A conflict.** The demo must show at least one `REJECT` before the deal lands, so judges see the advocates actually protect their person. See the scenario below.
-- **Rogue mode** (flag on one advocate): it tries to send a free-text question across ("what's Alex's max payment?"). The protocol rejects the message type and the leak filter logs it to `leak_events`.
+- **Rogue mode** (flag on one advocate): it tries to send a free-text question across ("what's Alex's max payment?"). The protocol gate (`src/engine/protocol.ts`) rejects the message type and logs the reason (never the content) to `leak_events`. Turn it on with `ROGUE_MODE=B` (or `A`).
 
 ### Demo scenario (fake data)
 Use this seed data so the demo hits a reject in round 1 and agrees in round 2. The math is checked; if you change a number, recheck the rounds.
@@ -397,6 +398,10 @@ Split: **Pranav = conversation side** (everything a human sees over iMessage). *
 
 **Contract between the halves** (`src/shared/contract.ts`): the Neon tables in section 7, plus
 - `negotiate(caseId) → { status: 'agreed', proposalId } | { status: 'needs_relaxation', asks }`. Shruti implements it. Pranav calls it once both people finish intake, and again after someone relaxes a constraint.
+  - Call it only when the case status is `intake` or `needs_relaxation`. It moves the case to `negotiating` first, so a second call while one is running throws ("already being negotiated"); safe to ignore.
+  - On `needs_relaxation` it sets that status itself. On `agreed` it leaves the status alone: Pranav sends the agreement and sets `awaiting_confirmation`.
+  - Relaxing a constraint means **updating** that person's existing constraint row, not inserting a second one.
+  - In `transfer`, `buyout_cents` and `deposit_cents` can have opposite signs (e.g. the buyout goes one way and the deposit payback the other); `total_cents` is the net and is never negative. See `Transfer` in `src/shared/types.ts`.
 - `sendTo(participantId, text)`. Pranav implements it, and it runs the leak filter first. Every outbound message goes through it.
 
 **Sync points:** ~11 PM Sat, a seeded case runs through `negotiate()` and the agreement prints via the terminal provider. ~3 AM Sun, a full run on two iPhones with the judge view open.

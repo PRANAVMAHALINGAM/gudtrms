@@ -13,6 +13,7 @@ npm install
 cp .env.example .env   # then fill in DATABASE_URL (your own Neon branch) and the Spectrum keys
 npm run db:reset       # WIPES the database, recreates tables, loads the demo scenario
 npm test
+npm run demo:negotiate # runs negotiate() on the demo case; db:reset first for a clean run
 npm run dev            # Photon hello world (terminal only until Spectrum keys are set)
 ```
 
@@ -23,7 +24,7 @@ npm run dev            # Photon hello world (terminal only until Spectrum keys a
 | `src/shared/` | both | Types, the contract (`negotiate`, `sendTo`), demo scenario data. Tell your teammate before changing. |
 | `db/` | Shruti | `schema.sql` and the reset/seed script |
 | `src/db/` | Shruti | Neon client |
-| `src/engine/` | Shruti | Mediator, advocates, `negotiate()` (stub for now), rogue mode |
+| `src/engine/` | Shruti | Mediator, advocates, `negotiate()`, rogue mode (protocol gate) |
 | `judge/` | Shruti | Localhost-only judge view |
 | `src/index.ts`, `src/messaging/` | Pranav | Photon Spectrum |
 | `src/router/` | Pranav | Keyword × case-state routing |

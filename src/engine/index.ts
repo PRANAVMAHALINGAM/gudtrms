@@ -3,6 +3,8 @@
 // Every move is written to Neon as it happens, so the judge view (polling) can follow along.
 // Pranav imports `negotiate` from here; keep the name and signature.
 //
+// Call it only when the case status is 'intake' (both finished intake) or 'needs_relaxation' (someone
+// relaxed). It moves the case to 'negotiating' first, so a second call while one is running throws.
 // Status: on 'needs_relaxation' this sets cases.status = 'needs_relaxation'. On 'agreed' it leaves
 // the status alone: the conversation side sends the agreement and sets 'awaiting_confirmation'.
 // Relaxing a constraint should UPDATE the person's existing constraint row, not add a second one
@@ -13,9 +15,9 @@
 
 import { setTimeout as sleep } from 'node:timers/promises';
 import { query } from '../db/client.ts';
-import type { Negotiate, RelaxAsk } from '../shared/contract.ts';
+import type { Negotiate, NegotiationResult, RelaxAsk } from '../shared/contract.ts';
 import type {
-  Constraint, Decision, DepositContribution, IsoDate, Item, Participant, Role, Uuid, Valuation,
+  CaseStatus, Constraint, Decision, DepositContribution, IsoDate, Item, Participant, Role, Uuid, Valuation,
 } from '../shared/types.ts';
 import { decide, relaxAsk, rogueAttempt, type AdvocateView, type ProposalTerms } from './advocate.ts';
 import { candidates, type MoveOutWindow } from './mediator.ts';
@@ -60,67 +62,95 @@ export const negotiate: Negotiate = async (caseId) => {
   for (const c of constraints) if (c.kind === 'move_out_window') windows[c.participant_id] = c.value;
   if (!windows[a.id] || !windows[b.id]) throw new Error(`Case ${caseId}: both people need a move-out window`);
 
-  await query("update cases set status = 'negotiating' where id = $1", [caseId]);
-  // Rounds keep counting across calls (after a relaxation), so the judge view's counter never resets.
-  const [previous] = await query<{ last: number }>(
-    'select coalesce(max(round), 0)::int as last from proposals where case_id = $1', [caseId]);
+  const runRounds = async (): Promise<NegotiationResult> => {
+    // Rounds keep counting across calls (after a relaxation), so the judge view's counter never resets.
+    const [previous] = await query<{ last: number }>(
+      'select coalesce(max(round), 0)::int as last from proposals where case_id = $1', [caseId]);
 
-  const rogue = rogueRole();
-  let rogueTried = false;
+    const rogue = rogueRole();
+    let rogueTried = false;
 
-  const rejected: ProposalTerms[] = [];
-  let round = previous!.last;
-  for (const candidate of candidates({ a: a.id, b: b.id, items, valuations, deposits, windows })) {
-    if (rejected.length === ROUND_CAP) break;
-    round++;
-    const terms: ProposalTerms = {
-      allocation: candidate.allocation, transfer: candidate.transfer, move_out_date: candidate.moveOutDate,
-    };
+    const rejected: ProposalTerms[] = [];
+    let round = previous!.last;
+    for (const candidate of candidates({ a: a.id, b: b.id, items, valuations, deposits, windows })) {
+      if (rejected.length === ROUND_CAP) break;
+      round++;
+      const terms: ProposalTerms = {
+        allocation: candidate.allocation, transfer: candidate.transfer, move_out_date: candidate.moveOutDate,
+      };
 
-    const [proposal] = await query<{ id: Uuid }>(
-      `insert into proposals (case_id, round, allocation, transfer, move_out_date, status)
-       values ($1, $2, $3, $4, $5, 'pending') returning id`,
-      [caseId, round, JSON.stringify(terms.allocation), JSON.stringify(terms.transfer), terms.move_out_date]);
-    const proposalId = proposal!.id;
-    await pace();
+      const [proposal] = await query<{ id: Uuid }>(
+        `insert into proposals (case_id, round, allocation, transfer, move_out_date, status)
+         values ($1, $2, $3, $4, $5, 'pending') returning id`,
+        [caseId, round, JSON.stringify(terms.allocation), JSON.stringify(terms.transfer), terms.move_out_date]);
+      const proposalId = proposal!.id;
+      await pace();
 
-    let allAccept = true;
-    for (const { participant, view } of advocates) {
-      const other = participant.id === a.id ? b : a;
+      let allAccept = true;
+      for (const { participant, view } of advocates) {
+        const other = participant.id === a.id ? b : a;
 
-      if (participant.role === rogue && !rogueTried) {
-        rogueTried = true;
-        await sendAcross(caseId, proposalId, participant, other, rogueAttempt(other.display_name ?? 'your ex'));
+        if (participant.role === rogue && !rogueTried) {
+          rogueTried = true;
+          await sendAcross(caseId, proposalId, participant, other, rogueAttempt(other.display_name ?? 'your ex'));
+          await pace();
+        }
+
+        const { decision, note } = decide(view, terms);
+        // decisions has no reason column on purpose; the note goes to advocate_notes (judge view only).
+        await query('insert into advocate_notes (case_id, proposal_id, participant_id, note) values ($1, $2, $3, $4)',
+          [caseId, proposalId, participant.id, note]);
+        const sent = await sendAcross(caseId, proposalId, participant, other, { type: decision });
+        if (sent !== 'accept') allAccept = false;
         await pace();
       }
 
-      const { decision, note } = decide(view, terms);
-      // decisions has no reason column on purpose; the note goes to advocate_notes (judge view only).
-      await query('insert into advocate_notes (case_id, proposal_id, participant_id, note) values ($1, $2, $3, $4)',
-        [caseId, proposalId, participant.id, note]);
-      const sent = await sendAcross(caseId, proposalId, participant, other, { type: decision });
-      if (sent !== 'accept') allAccept = false;
-      await pace();
+      await query('update proposals set status = $2 where id = $1', [proposalId, allAccept ? 'accepted' : 'rejected']);
+      if (allAccept) return { status: 'agreed', proposalId };
+      rejected.push(terms);
     }
 
-    await query('update proposals set status = $2 where id = $1', [proposalId, allAccept ? 'accepted' : 'rejected']);
-    if (allAccept) return { status: 'agreed', proposalId };
-    rejected.push(terms);
-  }
+    // Stuck. Ask both people at once (null for whoever has nothing to relax), so neither is singled out.
+    await query("update cases set status = 'needs_relaxation' where id = $1", [caseId]);
+    const asks: Record<Uuid, RelaxAsk | null> = {};
+    for (const { participant, view } of advocates) asks[participant.id] = relaxAsk(view, rejected);
 
-  // Stuck. Ask both people at once (null for whoever has nothing to relax), so neither is singled out.
-  await query("update cases set status = 'needs_relaxation' where id = $1", [caseId]);
-  const asks: Record<Uuid, RelaxAsk | null> = {};
-  for (const { participant, view } of advocates) asks[participant.id] = relaxAsk(view, rejected);
+    // No proposal at all means the move-out windows don't overlap. Ask whoever's window ends first
+    // to stretch it by a fixed amount (never to the other person's date, which would leak it).
+    if (rejected.length === 0) {
+      const early = windows[a.id]!.latest <= windows[b.id]!.latest ? a : b;
+      asks[early.id] = { kind: 'move_out_window', suggestedLatest: addDays(windows[early.id]!.latest, WINDOW_STRETCH_DAYS) };
+    }
+    return { status: 'needs_relaxation', asks };
+  };
 
-  // No proposal at all means the move-out windows don't overlap. Ask whoever's window ends first
-  // to stretch it by a fixed amount (never to the other person's date, which would leak it).
-  if (rejected.length === 0) {
-    const early = windows[a.id]!.latest <= windows[b.id]!.latest ? a : b;
-    asks[early.id] = { kind: 'move_out_window', suggestedLatest: addDays(windows[early.id]!.latest, WINDOW_STRETCH_DAYS) };
+  // Claim the case first. A's and B's messages are handled in parallel, so both could call
+  // negotiate() at once; only one gets to run. If anything fails mid-way, the claim is released.
+  const previousStatus = await claim(caseId);
+  try {
+    return await runRounds();
+  } catch (err) {
+    await query("update proposals set status = 'superseded' where case_id = $1 and status = 'pending'", [caseId]);
+    await query("update cases set status = $2 where id = $1 and status = 'negotiating'", [caseId, previousStatus]);
+    throw err;
   }
-  return { status: 'needs_relaxation', asks };
 };
+
+/** Statuses negotiate() may start from: intake just finished, or someone relaxed a constraint. */
+const NEGOTIABLE: CaseStatus[] = ['intake', 'needs_relaxation'];
+
+/** Atomically moves the case to 'negotiating'. Throws if it's already negotiating (or not ready). */
+async function claim(caseId: Uuid): Promise<CaseStatus> {
+  const [current] = await query<{ status: CaseStatus }>('select status from cases where id = $1', [caseId]);
+  if (!current) throw new Error(`Case ${caseId} not found`);
+  if (!NEGOTIABLE.includes(current.status)) {
+    throw new Error(`Case ${caseId} can't start negotiating from status '${current.status}'`);
+  }
+  const claimed = await query(
+    "update cases set status = 'negotiating' where id = $1 and status = $2 returning id", [caseId, current.status]);
+  if (!claimed.length) throw new Error(`Case ${caseId} is already being negotiated by another call`);
+  return current.status;
+}
 
 /**
  * The only way an advocate's message reaches the other side. ACCEPT / REJECT is recorded in

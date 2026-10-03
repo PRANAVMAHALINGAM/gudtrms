@@ -12,6 +12,14 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-03 18:45 ET · Shruti
+- **Re-checked everything on my side:** typecheck (no unused code), all 20 tests, and the demo on Neon (normal and rogue) all pass and match section 8.
+- **Fixed: `negotiate()` could run twice on one case.** The messaging adapter handles A's and B's messages in parallel, so if both finish intake at the same moment, both could call it and write duplicate rounds. Now it claims the case first (`intake` / `needs_relaxation` → `negotiating`, atomically). A second call throws "already being negotiated by another call", which is safe to ignore. If a run fails mid-way, the case goes back to its previous status and any half-written proposal is marked `superseded`. Checked on Neon with two simultaneous calls and with a forced failure.
+- **Pranav:** call `negotiate()` only when the status is `intake` or `needs_relaxation`. The rules for calling it are now in `AGENTS.md` section 11 (contract), not just here, including that `buyout_cents` and `deposit_cents` in `transfer` can point opposite ways (`total_cents` is the net).
+- The demo seed's case status is now `intake` (both finished intake), not `negotiating`, so `negotiate()` can claim it.
+- Docs: `AGENTS.md` sections 7, 8, 11 (rogue mode and `negotiate()` rules), `README.md` (no longer says the engine is a stub; adds `npm run demo:negotiate`).
+- Files: `src/engine/index.ts`, `src/shared/demoScenario.ts`, `AGENTS.md`, `README.md`
+
 ### 2026-10-03 17:02 ET · Shruti
 - **Rogue mode is in.** `ROGUE_MODE=B` (or `A`; `true` means B) makes that advocate try once, on the first proposal, to send "what's Alex's max payment?" across. The protocol gate (`src/engine/protocol.ts`) only lets `{ type: 'accept' | 'reject' }` cross and refuses everything else, including a decision with a reason attached. The deal itself is unaffected.
 - **Where the blocked message goes:** `leak_events` gets the reason only (`BLOCKED: free text not allowed (from B's advocate)`), never the content, per section 7. The attempted question goes in the rogue advocate's own `advocate_notes` (judge view only), so the judge view can show it in that side lane and the BLOCKED line in the middle.
