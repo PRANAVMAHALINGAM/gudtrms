@@ -12,6 +12,14 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-03 16:08 ET · Shruti
+- **Mediator is in** (`src/engine/mediator.ts`). It's pure: no DB, no LLM. `candidates(input)` yields deals best total value first, each with its Knaster buyout, the deposit line, the move-out date, and a `math` object (fair shares, received, excess, surplus) for the judge view's math panel. Its input type has no field for caps or dealbreakers, so it can't see them.
+- Handles all item kinds: stuff, subscriptions (cancelled when nobody wants it), lease (A stays, B stays, or both move out), lease-break fee (only when both move out, goes to whoever minds paying it least), and pets (4 outcomes). Missing valuations count as $0; a missing fee valuation defaults to paying the whole fee.
+- **Tie rule:** options worth the same to both people are collapsed, and "cancelled" / "both move out" win ties. Without this, the $0 Spotify would tie for round 2 ("Alex keeps Spotify") and the demo would land in round 3.
+- Tests reproduce the section 8 table exactly (round 1 $865 + $750 = $1,615, round 2 $640 + $750 = $1,390, Nov 30), plus both-move-out with a fee, no window overlap, and "both end the same amount above fair share."
+- `negotiate()` is still the stub. Advocates and wiring it to Neon come next.
+- Files: `src/engine/mediator.ts`, `src/engine/mediator.test.ts`
+
 ### 2026-10-03 17:05 ET · Shruti
 - **Scaffold is in.** Node + TypeScript via `tsx` (no build step). Neon via `@neondatabase/serverless`, Photon via `spectrum-ts`. Pull, run `npm install`, and start in your own folders.
 - `db/schema.sql` (section 7 as SQL) and `npm run db:reset`, which **wipes** the database and loads the demo scenario. Use your own Neon branch. Checked on in-memory Postgres; not yet run against Neon.
