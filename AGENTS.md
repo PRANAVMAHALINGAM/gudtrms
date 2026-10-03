@@ -1,6 +1,6 @@
 # gudtrms
 
-> **gudtrms** = "good terms." A WhatsApp mediator for breakups where each person gets their own AI advocate, and the deal gets made without anyone's secrets leaking.
+> **gudtrms** = "good terms." An iMessage mediator for breakups where each person gets their own AI advocate, and the deal gets made without anyone's secrets leaking.
 
 **Event:** MHacks 2026 (Oct 3 to 4, 2026, 24 hours, Ann Arbor)
 
@@ -13,14 +13,14 @@
 - **After every change** (code or decisions): add an entry to the top of `docs/CHANGELOG.md`. Keep it short: what changed, why, which files.
 - Sections marked **DECIDED** are agreed by the team. Don't change them without a changelog entry explaining why.
 - Sections marked **PROPOSED** are implementation suggestions. Change them freely, but log it.
-- Never put secrets (Photon project ID/secret, WhatsApp access token and app secret, Neon connection string, LLM API keys) in any file in the repo. Use `.env`, and keep `.env` in `.gitignore`.
+- Never put secrets (Photon project ID/secret, Neon connection string, LLM API keys) in any file in the repo. Use `.env`, and keep `.env` in `.gitignore`.
 
 ---
 
 ## 1. What we're building (DECIDED)
 
 - **Problem:** married couples get courts and mediators when they split up. Unmarried couples and roommates who live together get nothing, just a fight over the couch.
-- **Product:** each person messages gudtrms on WhatsApp and gets their own **advocate agent**. The two advocates negotiate through a **mediator**, and both people end up with a written agreement covering who keeps what and who owes whom.
+- **Product:** each person texts gudtrms over iMessage and gets their own **advocate agent**. The two advocates negotiate through a **mediator**, and both people end up with a written agreement covering who keeps what and who owes whom.
 - **The key promise:** you can tell your agent the truth, and your ex never sees it. Privacy is enforced by how the system is built, not by trust.
 
 ---
@@ -44,22 +44,35 @@
 
 | Area | Decision | Why |
 |---|---|---|
-| Messaging | **Photon Spectrum** (`spectrum-ts`) over **WhatsApp**, using Spectrum's WhatsApp Business provider (official WhatsApp Business Cloud API) | Everyone already has WhatsApp; works on Android and iPhone |
-| Dev / fallback | Spectrum **terminal provider** for local dev; **Telegram provider** if WhatsApp setup is blocked | Same agent code, swap the provider |
+| Messaging | **Photon Spectrum** (`spectrum-ts`) over **iMessage**, using Spectrum's iMessage provider (cloud lines) | No approvals, and gudtrms can text Person B first. See "Why iMessage" below |
+| Dev / fallback | Spectrum **terminal provider** for local dev; **Telegram provider** if the iMessage line is blocked | Same agent code, swap the provider |
 | Language | **TypeScript** (Node or Bun) | Photon's SDK is TypeScript |
 | Database | **Neon** (hosted Postgres) | Plain Postgres, no learning curve |
 | Agents | Advocates + mediator are **plain modules in our backend**, no agent framework | Effort goes into negotiation and privacy |
 | Payments | **None** | Not core |
 | LLM | **TBD** | See open questions |
 
-**Rejected:** iMessage (switched to WhatsApp), Fetch.ai (whole workflow must live in ASI:One, too much overhead), Relay (users must install an iOS app), OpenClaw (not needed, security baggage), SpacetimeDB (new paradigm, real-time not core).
+**Rejected:** WhatsApp, Telegram as the main channel, and SMS (see "Why iMessage" below), Fetch.ai (whole workflow must live in ASI:One, too much overhead), Relay (users must install an iOS app), OpenClaw (not needed, security baggage), SpacetimeDB (new paradigm, real-time not core).
 
-### WhatsApp notes
-- **Credentials** (from a Meta for Developers app with WhatsApp enabled): access token, phone number ID, and app secret (verifies inbound webhook signatures). Passed to `whatsappBusiness.config({ accessToken, phoneNumberId, appSecret })`, or via env vars such as `SPECTRUM_WHATSAPP_BUSINESS_ACCESS_TOKEN` and `SPECTRUM_WHATSAPP_BUSINESS_PHONE_NUMBER_ID`. All in `.env`, never committed.
-- **1:1 chats only.** Fine for us, everything is DMs.
-- **24-hour window:** WhatsApp only allows free-form replies within 24 hours of the user's last message. Our flow always starts with the user messaging first and finishes quickly, so we don't need message templates. Don't build anything that messages a user out of the blue.
-- **Test number:** Meta's test number can only message a small allowlist of registered phone numbers. Register every teammate who'll demo. Judges won't be able to message it from their own phones.
-- **Inbound delivery:** direct mode likely needs a public HTTPS URL for Meta's webhooks (use ngrok during the hackathon). Photon's cloud mode may handle inbound through our Photon project instead. See open questions.
+### Why iMessage (and not WhatsApp, Telegram, or SMS)
+We want gudtrms itself to invite Person B, because people splitting up often aren't on speaking terms, so A shouldn't have to contact B. That rules out most channels within a 24-hour hackathon:
+
+| Channel | Can gudtrms text B first? | Approvals needed | Problem |
+|---|---|---|---|
+| **iMessage (Photon)** | **Yes** | **None.** A line comes with the Spectrum plan | iPhone only |
+| WhatsApp | Only with a Meta-approved template | Meta app setup + template approval (minutes to hours, not guaranteed) | Test number only reaches an allowlist of registered phones, so judges can't try it; 24-hour reply window |
+| Telegram | **No.** Bots can't message anyone who hasn't opened the bot first | None | A has to forward a link to B, which is what we're trying to avoid |
+| SMS (Twilio etc.) | Yes, technically | US carrier registration (A2P 10DLC or toll-free verification), usually days to weeks | Won't be approved in time; trial accounts only reach verified numbers; unencrypted, which is a bad look for a privacy product |
+
+**Trade-off we're accepting:** Android users can't be invited or take part. Fine for the demo if every demo phone is an iPhone. Photon's marketing mentions SMS/RCS, so ask the booth whether an iMessage line falls back to SMS for Android numbers (see open questions). WhatsApp is the backup plan if we need Android.
+
+### iMessage notes
+- **Credentials:** Photon project ID + secret (cloud mode), in `.env`, never committed. Local mode reads the macOS Messages database directly with no credentials, which is an option for dev on a Mac.
+- **Lines:** Free/Pro plans route each user through a number from a **shared pool**, so A and B may text different numbers. Fine for us, since everything is 1:1 DMs and the router keys on the user's handle, not our number. A dedicated number needs the Business plan.
+- **Texting first:** `const dm = await im.space.create(await im.user("+15551111111")); await dm.send("...")`. This is how the invite to B is sent (section 5).
+- **Limits:** 50 new conversations per line per day (the first message to someone the line has never texted), 5,000 messages per server per day. Plenty for a demo.
+- **No 24-hour window, no templates.** But the invite rules in section 5 still apply. Nothing in iMessage stops us from texting anyone, so those rules are the only thing keeping gudtrms from being a way to get around a block.
+- **Test with iPhones:** every demo phone (and any judge who tries it) must be on iMessage.
 
 ---
 
@@ -85,16 +98,21 @@
 
 All conversation happens in **1:1 DMs** with the gudtrms number. No group chat between the two people.
 
-1. **Start:** Person A texts `start`. gudtrms replies with a short intro, a **case code**, and a ready-to-forward message for their ex.
-2. **Join:** Person B texts the case code. Both are now linked to one case.
-3. **Intake (private, in each person's own thread):**
+1. **Start:** Person A texts `start`. gudtrms replies with a short intro and asks for their ex's first name and phone number. A also gets a **case code** as a backup.
+2. **Invite:** gudtrms texts B one fixed invite: `{name} started a gudtrms case to sort out your shared stuff privately. Reply JOIN to take part or STOP to never hear from us again.` A doesn't have to talk to B at all. Invite rules:
+   - **One invite per case, no reminders, no follow-ups.** If B never replies, gudtrms never messages B again.
+   - The invite text is fixed. A can't add free text, so it can't be used to send messages to B.
+   - B replies `STOP` → that number goes on a permanent opt-out list and **no case from anyone** can invite it again. A is told only "they didn't join."
+   - A is told "invite sent, waiting on them." A never learns whether B read it.
+3. **Join:** B replies `JOIN` (or texts the case code if A forwarded it instead). Both are now linked to one case.
+4. **Intake (private, in each person's own thread):**
    - Build the **shared item list**. Either person can add items. Item names are visible to both; values are not.
    - For each item: what's it worth to you, in dollars. The agent helps people who can't put a number on it ("would you rather have the couch or $200?").
    - **Hard constraints:** max buyout you can pay, move-out window, dealbreakers ("I have to keep the dog").
    - For each piece of info, the agent confirms **private vs. okay to share**. Default is private.
-4. **Negotiation:** mediator proposes, advocates accept/reject, up to the round cap. No humans involved unless stuck.
-5. **Stuck:** each person's agent privately asks them to relax something: "Nothing fits yet. Would you go up to $700? Totally fine to say no, nobody will know you were asked."
-6. **Agreement:** both people get the same final text and reply `YES` to confirm. Once both confirm, the case closes.
+5. **Negotiation:** mediator proposes, advocates accept/reject, up to the round cap. No humans involved unless stuck.
+6. **Stuck:** each person's agent privately asks them to relax something: "Nothing fits yet. Would you go up to $700? Totally fine to say no, nobody will know you were asked."
+7. **Agreement:** both people get the same final text and reply `YES` to confirm. Once both confirm, the case closes.
 
 **Example agreement**
 ```
@@ -113,7 +131,7 @@ Reply YES to confirm.
 ## 6. Architecture (PROPOSED)
 
 ```
-        WhatsApp via Photon Spectrum
+        iMessage via Photon Spectrum
    Person A's DM            Person B's DM
          |                        |
          v                        v
@@ -135,7 +153,7 @@ Reply YES to confirm.
    three lanes (Advocate A | what crosses | Advocate B) + X-ray toggle. See section 8.
 ```
 
-**Router:** maps an incoming handle to a participant and case. Handles `start`, case-code joins, and `YES` confirmations; routes everything else to that person's intake agent or relaxation prompt.
+**Router:** maps an incoming handle to a participant and case. Handles `start`, collecting the ex's number and sending the invite, `JOIN` / case-code joins, `STOP` opt-outs, and `YES` confirmations; routes everything else to that person's intake agent or relaxation prompt.
 
 **Intake agent (LLM, one conversation per participant):** turns chat into structured data (items, dollar valuations, hard constraints, visibility flags). Writes only its own participant's rows. Never reads the other person's data.
 
@@ -168,9 +186,14 @@ Reply YES to confirm.
 
 ```sql
 cases        (id uuid pk, code text unique, status text, created_at timestamptz)
-             -- status: intake | negotiating | needs_relaxation | agreed | closed
-participants (id uuid pk, case_id fk, handle text, role text, display_name text, intake_done bool)
-             -- role: 'A' | 'B'; handle = WhatsApp phone number
+             -- status: inviting | intake | negotiating | needs_relaxation | agreed | closed
+participants (id uuid pk, case_id fk, handle text, role text, display_name text, intake_done bool,
+              invite_sent_at timestamptz, joined_at timestamptz)
+             -- role: 'A' | 'B'; handle = phone number (E.164) / iMessage ID
+             -- B's row is created when A gives the number; joined_at stays null until B replies JOIN.
+             -- invite_sent_at set once, never re-sent.
+opt_outs     (handle text pk, created_at timestamptz)
+             -- anyone who replied STOP. Checked before every invite, across all cases.
 items        (id uuid pk, case_id fk, name text, kind text, added_by fk participants)
              -- kind: item | lease | pet | deposit | subscription; name is visible to both
 valuations   (participant_id fk, item_id fk, value_cents int, visibility text default 'private',
@@ -238,7 +261,7 @@ A web page on the demo laptop that shows judges the advocates negotiating. The e
 | 0 to 2 | Photon hello world (terminal provider), Neon schema, router, case codes |
 | 2 to 6 | Intake agent: items, valuations, constraints, private/share confirmation |
 | 6 to 10 | Mediator + advocates, unit-tested with fake data |
-| 10 to 14 | End-to-end on WhatsApp with two real phones |
+| 10 to 14 | End-to-end on iMessage with two real iPhones |
 | 14 to 18 | Leak filter, round cap, rogue mode, relaxation flow |
 | 18 to 21 | Judge view |
 | 21 to 24 | Polish, backup video, Devpost, pitch rehearsal |
@@ -248,8 +271,9 @@ A web page on the demo laptop that shows judges the advocates negotiating. The e
 ## 10. Open questions
 
 - [ ] Which LLM provider and model?
-- [ ] WhatsApp setup: Meta app created, access token + phone number ID + app secret in `.env`, demo phones registered on the test number allowlist?
-- [ ] WhatsApp inbound: does Photon's cloud mode handle it, or do we run ngrok for Meta's webhooks? (Ask the Photon booth.)
+- [ ] Photon setup: project created at app.photon.codes, iMessage turned on, project ID + secret in `.env`? Are all demo phones iPhones?
+- [ ] Photon booth: if our iMessage line texts an Android number, does it fall back to SMS/RCS, and does that need carrier (10DLC) registration? If yes and no, we get Android for free.
+- [ ] Photon booth: on the shared-pool line, does `im.space.create` to a brand-new number work on the free plan?
 - [ ] Photon and Neon prize requirements (MHacks prizes page, behind login)
 - [ ] Pets: indivisible in v1, or build shared-custody options?
 - [ ] Does the item list need both people to approve it before valuations start?
