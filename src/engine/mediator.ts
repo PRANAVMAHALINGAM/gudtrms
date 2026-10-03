@@ -4,8 +4,9 @@
 // can be rejected and the next candidate gets proposed.
 
 import type {
-  Allocation, Cents, Constraint, DepositContribution, IsoDate, Item, Outcome, Transfer, Uuid, Valuation,
+  Allocation, Cents, Constraint, DepositContribution, IsoDate, Item, Transfer, Uuid, Valuation,
 } from '../shared/types.ts';
+import { fairShare as fairShareOf, sum, valueLookup, type ValueOf } from './values.ts';
 
 export type MoveOutWindow = Extract<Constraint, { kind: 'move_out_window' }>['value'];
 
@@ -65,7 +66,7 @@ export function* candidates(input: MediatorInput): Generator<Candidate> {
 
   const value = valueLookup(input.valuations);
   const groups = optionGroups(input, value);
-  const fairShare = fairShares(input, value);
+  const fairShare = { [a]: fairShareOf(a, input.items, value), [b]: fairShareOf(b, input.items, value) };
   const lease = input.items.find((i) => i.kind === 'lease');
 
   for (const pick of bestFirst(groups)) {
@@ -88,15 +89,6 @@ export function* candidates(input: MediatorInput): Generator<Candidate> {
       },
     };
   }
-}
-
-type ValueOf = (participantId: Uuid, item: Item, outcome: Outcome) => Cents;
-
-/** Missing valuations count as $0, except the lease-break fee, which defaults to paying all of it. */
-function valueLookup(valuations: Valuation[]): ValueOf {
-  const byKey = new Map(valuations.map((v) => [`${v.participant_id}|${v.item_id}|${v.outcome}`, v.value_cents]));
-  return (participantId, item, outcome) =>
-    byKey.get(`${participantId}|${item.id}|${outcome}`) ?? (outcome === 'pay' ? -(item.amount_cents ?? 0) : 0);
 }
 
 /**
@@ -157,15 +149,6 @@ function optionGroups(input: MediatorInput, value: ValueOf): Option[][] {
     groups.push(distinct.sort((x, y) => y.a + y.b - (x.a + x.b)));
   }
   return groups;
-}
-
-/** F = (sum of your keep / full-time values) / 2. The lease-break fee isn't part of it. */
-function fairShares(input: MediatorInput, value: ValueOf): Record<Uuid, number> {
-  const total = (p: Uuid) =>
-    sum(input.items
-      .filter((i) => i.kind !== 'lease_break_fee')
-      .map((i) => value(p, i, i.kind === 'pet' ? 'full' : 'keep')));
-  return { [input.a]: total(input.a) / 2, [input.b]: total(input.b) / 2 };
 }
 
 /**
@@ -230,5 +213,3 @@ function* bestFirst(groups: Option[][]): Generator<number[]> {
     }
   }
 }
-
-const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);

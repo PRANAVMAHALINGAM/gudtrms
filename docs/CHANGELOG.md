@@ -12,6 +12,20 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-03 16:25 ET · Shruti
+- **Neon is live.** Project `gudtrms` with branches `production` (kept clean for the demo), `shruti`, and `pranav`, all set to never auto-delete. `npm run db:reset` checked against Neon: every table is created and the demo case `4F7K` loads. Pranav: I'll add you to the project; copy the connection string for the `pranav` branch into your own `.env`.
+- **`date` columns now come back as `'YYYY-MM-DD'` strings**, not JS `Date` objects, matching `IsoDate` in `src/shared/types.ts`. A `Date` can print as the wrong day depending on timezone (bad for "moves out by Nov 30").
+- Files: `src/db/client.ts`
+
+### 2026-10-03 16:15 ET · Shruti
+- **Advocates are in** (`src/engine/advocate.ts`). Pure, deterministic. `decide(view, terms)` accepts only if the total paid is within the cap, every dealbreaker is met, the move-out date is in the window, and the deal gives at least the fair share (deposit excluded). It returns the one-line note for `advocate_notes`, e.g. `Total $1,615 is over my $1,600 cap. REJECT`. On a reject, the note lists only what failed.
+- `relaxAsk(view, rejected)` gives the smallest single change that would have made a rejected proposal pass for this person (smallest cap raise first, then window, then dealbreaker), in the `RelaxAsk` shape from the contract. Returns null if that person didn't block anything.
+- An advocate throws if it's handed any valuation or constraint that isn't its own person's.
+- Moved the per-person value math (`valueLookup`, `fairShare`, `received`) into `src/engine/values.ts` so the mediator and advocates share it. No behavior change.
+- Tests: Alex rejects round 1 and accepts round 2, Sam accepts both; dealbreaker, window, relaxation (Alex is asked about $1,615), and the private-data guard.
+- `negotiate()` is still the stub; wiring it to Neon is next.
+- Files: `src/engine/advocate.ts`, `src/engine/advocate.test.ts`, `src/engine/values.ts`, `src/engine/mediator.ts`
+
 ### 2026-10-03 16:08 ET · Shruti
 - **Mediator is in** (`src/engine/mediator.ts`). It's pure: no DB, no LLM. `candidates(input)` yields deals best total value first, each with its Knaster buyout, the deposit line, the move-out date, and a `math` object (fair shares, received, excess, surplus) for the judge view's math panel. Its input type has no field for caps or dealbreakers, so it can't see them.
 - Handles all item kinds: stuff, subscriptions (cancelled when nobody wants it), lease (A stays, B stays, or both move out), lease-break fee (only when both move out, goes to whoever minds paying it least), and pets (4 outcomes). Missing valuations count as $0; a missing fee valuation defaults to paying the whole fee.
