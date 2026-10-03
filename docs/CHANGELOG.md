@@ -12,6 +12,12 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-03 16:40 ET · Shruti
+- **Split the work.** Pranav takes the conversation side: Photon, router, intake agent, agreement/YES/relaxation messages, leak filter. Shruti takes the negotiation side: Neon schema + seed, mediator, advocates, rogue mode, judge view.
+- Defined the contract between the halves: `negotiate(caseId)` (Shruti) and `sendTo(participantId, text)` (Pranav), plus the Neon tables. Sync points are at ~11 PM and ~3 AM.
+- Diagram + timeline: https://claude.ai/artifact/MRD8VTJcSoxGVtZPUQsLLP
+- Files: `AGENTS.md` (section 11)
+
 ### 2026-10-03 16:10 ET · Shruti
 - **Lease-break fee is valued like any other item** (we decided against a flat 50/50 split). It only exists if both move out. The fee amount is a fact both confirm, and each person says what taking on the whole fee would cost them (defaults to the fee). It goes to whoever minds paying it least, and the buyout compensates them. Its negative value also makes "both move out" less attractive, so the mediator only picks it when it's still the best option after the fee.
 - Why: a split that ignores the fee could pick "both move out" even when the fee makes staying the better deal.

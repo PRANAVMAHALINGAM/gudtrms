@@ -378,12 +378,25 @@ A web page on the demo laptop that shows judges the advocates negotiating. The e
 
 ## 11. Team and ownership
 
-| Area | Owner | Status |
-|---|---|---|
-| Messaging + router (Photon) | TBD | not started |
-| Intake agent | TBD | not started |
-| Mediator + advocates | TBD | not started |
-| Privacy layer (leak filter, rogue mode) | TBD | not started |
-| Neon schema + DB access | TBD | not started |
-| Judge view | TBD | not started |
-| Pitch + Devpost + video | TBD | not started |
+Split: **Pranav = conversation side** (everything a human sees over iMessage). **Shruti = negotiation side** (deal engine + the judge view that proves nothing leaked). Diagram, contract, and timeline: https://claude.ai/artifact/MRD8VTJcSoxGVtZPUQsLLP
+
+| Area | Owner | Folder | Status |
+|---|---|---|---|
+| Photon setup + messaging adapter (incl. invite to a new number) | Pranav | `src/messaging/` | not started |
+| Router (keyword × case state) | Pranav | `src/router/` | not started |
+| Intake agent (LLM) | Pranav | `src/intake/` | not started |
+| Agreement text, YES confirmation, relaxation prompts | Pranav | `src/conversation/` | not started |
+| Leak filter (wraps every outbound send) | Pranav | `src/privacy/` | not started |
+| Neon schema, DB client, demo seed | Shruti | `db/`, `src/db/` | not started |
+| Mediator | Shruti | `src/engine/` | not started |
+| Advocates, `negotiate()`, rogue mode | Shruti | `src/engine/` | not started |
+| Judge view | Shruti | `judge/` | not started |
+| Neon RLS + demo-seed branch, Notability screenshots | Shruti | | not started |
+| .Tech domain | Pranav | | not started |
+| Pitch + Devpost + backup video | Both | | not started |
+
+**Contract between the halves** (`src/shared/contract.ts`): the Neon tables in section 7, plus
+- `negotiate(caseId) → { status: 'agreed', proposalId } | { status: 'needs_relaxation', asks }`. Shruti implements it. Pranav calls it once both people finish intake, and again after someone relaxes a constraint.
+- `sendTo(participantId, text)`. Pranav implements it, and it runs the leak filter first. Every outbound message goes through it.
+
+**Sync points:** ~11 PM Sat, a seeded case runs through `negotiate()` and the agreement prints via the terminal provider. ~3 AM Sun, a full run on two iPhones with the judge view open.
