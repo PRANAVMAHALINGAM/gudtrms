@@ -1,0 +1,22 @@
+# Secrets (Photon, Neon, LLM keys). Never commit these.
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Logs and test output
+*.log
+npm-debug.log*
+coverage/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

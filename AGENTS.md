@@ -84,8 +84,8 @@ We want gudtrms itself to invite Person B, because people splitting up often are
 - The output is a **written agreement** both people confirm.
 
 ### Privacy rules (non-negotiable)
-1. A person's private data is only readable by **their own** intake agent, **their own** advocate, and the mediator code. **Only exception:** the localhost-only judge view (section 8), a demo tool that runs on fake data and is never deployed.
-2. The only things that cross from one side to the other: the shared item list (names only), whether a proposal was accepted or rejected (no reasons), and the final agreement.
+1. A person's private data is only readable by **their own** intake agent, **their own** advocate, and the mediator code. The mediator only gets what it needs to build a deal (valuations, move-out windows, deposit contributions). **Payment caps and dealbreakers stay with the advocate only.** **Only exception:** the localhost-only judge view (section 8), a demo tool that runs on fake data and is never deployed.
+2. The only things that cross from one side to the other: the shared item list (names only), each person's deposit contribution (a fact both confirm, not a preference), the mediator's proposals, whether each proposal was accepted or rejected (no reasons), and the final agreement.
 3. **Only the mediator generates proposals.** Advocates cannot propose, ask the other side questions, or send free text across.
 4. **Round cap** on negotiation to prevent probing (proposed: 5 rounds).
 5. **Every outbound message passes the leak filter.**
@@ -105,23 +105,45 @@ All conversation happens in **1:1 DMs** with the gudtrms number. No group chat b
    - B replies `STOP` → that number goes on a permanent opt-out list and **no case from anyone** can invite it again. A is told only "they didn't join."
    - A is told "invite sent, waiting on them." A never learns whether B read it.
 3. **Join:** B replies `JOIN` (or texts the case code if A forwarded it instead). Both are now linked to one case.
-4. **Intake (private, in each person's own thread):**
-   - Build the **shared item list**. Either person can add items. Item names are visible to both; values are not.
-   - For each item: what's it worth to you, in dollars. The agent helps people who can't put a number on it ("would you rather have the couch or $200?").
-   - **Hard constraints:** max buyout you can pay, move-out window, dealbreakers ("I have to keep the dog").
-   - For each piece of info, the agent confirms **private vs. okay to share**. Default is private.
+4. **Intake (private, in each person's own thread):** the agent says up front that **everything you tell it stays private**. There's no "okay to share" option. The only exception is your deposit contribution (below), which is a fact, not a preference.
+   - Build the **shared item list**. Either person can add items: stuff (couch, TV), the lease, pets, subscriptions. Item names are visible to both; values are not.
+   - **Items:** what's it worth to you to keep it, in dollars. The agent helps people who can't put a number on it ("would you rather have the couch or $200?").
+   - **The lease:** what's it worth to you to stay, compared with both of you moving out? Positive means you'd like to stay. Zero or negative means you'd rather both leave (the rent is too high, or you want a fresh start). If neither person puts a positive number, you **both move out**.
+   - **Lease-break fee** (only asked if the lease runs past your move-out window): the fee amount is a fact. It's shown to both people to confirm, like the deposit. Then the agent asks: "how much would someone have to pay you for you to cover the whole fee?" That's your (negative) value for taking it on, and it defaults to the fee amount.
+   - **Pets:** three numbers. What's it worth to you if Biscuit (1) lives with you full-time, (2) lives with you and your ex has Biscuit every other weekend, (3) lives with your ex and you have Biscuit every other weekend.
+   - **Subscriptions** (Netflix, Spotify, internet): what's it worth to you to keep the account? Whoever keeps it takes over billing from the move-out date. The value can be negative if it's a burden ("I'd pay $50 to not be stuck with the internet contract"). If nobody wants it, it gets cancelled.
+   - **Security deposit:** how much of it did you pay? Each person's contribution is shown to the other to confirm. If the numbers don't add up, both agents ask their person to double-check.
+   - **Move-out window:** the range of dates that works for you for whoever moves out to be gone (or for both of you to be gone, if you both leave).
+   - **Hard constraints:** the most you could pay your ex in total (buyout plus deposit payback), and dealbreakers ("Biscuit has to live with me").
 5. **Negotiation:** mediator proposes, advocates accept/reject, up to the round cap. No humans involved unless stuck.
 6. **Stuck:** each person's agent privately asks them to relax something: "Nothing fits yet. Would you go up to $700? Totally fine to say no, nobody will know you were asked."
-7. **Agreement:** both people get the same final text and reply `YES` to confirm. Once both confirm, the case closes.
+7. **Agreement:** both people get the same final text and reply `YES` to confirm. Once both confirm, the case closes. **`YES` only counts as a confirmation after the agreement has been sent to that person.** Any other "yes" (answering the agent during intake or relaxation) is just an answer to the agent's question.
 
-**Example agreement**
+**Example agreement** (matches the demo scenario in section 8)
 ```
 gudtrms agreement · Case 4F7K
 
 - Alex keeps the apartment and the lease. Sam moves out by Nov 30.
-- Alex pays Sam $640.
+- Alex pays Sam $640 as a buyout.
+- The deposit stays with the landlord under Alex's lease, so Alex pays Sam back Sam's $750 share.
+- Total: Alex pays Sam $1,390.
 - Sam keeps the couch and the TV.
 - Biscuit lives with Alex. Sam has Biscuit every other weekend.
+- Spotify gets cancelled.
+
+Reply YES to confirm.
+```
+
+**Example agreement when both move out**
+```
+gudtrms agreement · Case 9QJ2
+
+- You both move out by Dec 15.
+- Riley pays the landlord the $600 lease-break fee.
+- Jordan pays Riley $220 as a buyout.
+- Security deposit: when the landlord returns it, Jordan gets 60% and Riley gets 40%
+  (any deductions are shared the same way). Whoever receives it sends the other their share.
+- Jordan keeps the couch. Riley keeps the TV and the bookshelf.
 
 Reply YES to confirm.
 ```
@@ -153,32 +175,64 @@ Reply YES to confirm.
    three lanes (Advocate A | what crosses | Advocate B) + X-ray toggle. See section 8.
 ```
 
-**Router:** maps an incoming handle to a participant and case. Handles `start`, collecting the ex's number and sending the invite, `JOIN` / case-code joins, `STOP` opt-outs, and `YES` confirmations; routes everything else to that person's intake agent or relaxation prompt.
+**Router:** maps an incoming handle to a participant and case, then routes by **keyword + case state**. A keyword only counts in the right state; otherwise the message goes to that person's agent as normal chat.
 
-**Intake agent (LLM, one conversation per participant):** turns chat into structured data (items, dollar valuations, hard constraints, visibility flags). Writes only its own participant's rows. Never reads the other person's data.
+| Keyword | Only counts when | Otherwise |
+|---|---|---|
+| `start` | sender has no open case | goes to their agent |
+| `JOIN` / case code | sender was invited (or has the code) and hasn't joined yet | goes to their agent |
+| `STOP` | **always** (safety). Removes them from any case and adds them to `opt_outs`. The other person is told only that the case ended | — |
+| `YES` | case is `awaiting_confirmation` **and** the agreement has been sent to this person | it's just an answer to whatever their agent asked |
 
-**Mediator (deterministic code):** allocation uses **Knaster's procedure** (sealed bids with money):
-- A values item *i* at `a_i`, B at `b_i` (dollars, private). Each item goes to whoever values it more.
-- Fair shares: `F_A = sum(a_i) / 2`, `F_B = sum(b_i) / 2`.
+Everything else goes to that person's intake agent or relaxation prompt.
+
+**Intake agent (LLM, one conversation per participant):** turns chat into structured data (items, valuations per outcome, deposit contribution, move-out window, hard constraints). Writes only its own participant's rows. Never reads the other person's data.
+
+**Mediator (deterministic code):** sees valuations, move-out windows, and deposit contributions. It does **not** see payment caps or dealbreakers; those live only in each advocate. That's why a proposal can be rejected, and why the advocates do real work.
+
+*Outcomes.* Every item has a set of outcomes, and each person puts a dollar value on each outcome:
+- Stuff and subscriptions: **A keeps** or **B keeps**. For a subscription, if both values are <= 0, it's **cancelled**.
+- The lease: **A stays**, **B stays**, or **both move out**. "Both move out" is worth $0 to each person (it's the baseline the stay values are measured against), so with no fee it wins whenever neither person values staying above $0.
+- Lease-break fee: an item that **only exists if both move out**, with outcomes **A pays** or **B pays**. Like any other item, it goes to whoever values it highest (i.e. minds paying it least), and the buyout compensates them. Because its value is negative, it drags down the "both move out" option. The mediator picks both moving out only if it's still the best total even after the fee. So "both move out with fee" competes against "A stays" and "B stays" as a lease outcome, valued at the best fee assignment.
+- Pets: **A full-time**, **A + B every other weekend**, **B + A every other weekend**, **B full-time**. The person with every-other-weekend gets their "visits" value, and the full-time person gets nothing from the other side.
+
+*Allocation* (Knaster's procedure, generalized to outcomes):
+- For each item, pick the outcome with the **highest total value** (A's value + B's value). For a plain item, that's just "whoever values it more."
+- Fair shares: `F_A = (sum of A's keep / full-time values) / 2`, same for `F_B`.
 - `W_A`, `W_B` = what each received, by their own valuations. Excess: `E_A = W_A - F_A`, `E_B = W_B - F_B`.
-- Surplus `S = E_A + E_B` (always >= 0).
-- **Transfer from A to B = `E_A - S/2`** (negative means B pays A).
-- Result: A ends at `F_A + S/2`, B at `F_B + S/2`. For 2 people, nobody would want to swap.
-- Check hard constraints on every proposal (buyout cap, must-keep items, move-out window). If the base proposal fails one, generate alternatives (reassign items, adjust the transfer) ranked by total value.
-- Never sends free text across sides.
+- Surplus `S = E_A + E_B` (always >= 0 for the best allocation).
+- **Buyout from A to B = `(E_A - E_B) / 2`** (same as `E_A - S/2`; negative means B pays A). Both end up exactly `S/2` above their fair share.
+
+*Deposit.* It's a separate line in the agreement and **not** part of the fair-share math, since it's just returning people's own money.
+- **One person stays:** the deposit stays with the landlord under the lease, so the person staying pays the other back their contribution now. This counts toward the payer's cap.
+- **Both move out:** the landlord returns the deposit. The refund is split **in proportion to what each person paid**, and any deductions are shared the same way. Whoever receives the refund sends the other their share. Nobody pays anything up front, so it doesn't count toward anyone's cap.
+
+*Move-out date.* The **latest date inside both windows**: it gives whoever is leaving the most time, and if both are leaving it's the date both are out by. No overlap means nothing can work, so go straight to relaxation.
+
+*Rounds.* The mediator ranks candidate allocations by total value (the best one first, then single-item changes, and so on) and proposes them in order, recomputing the buyout for each. A rejection moves to the next candidate. After the round cap, the case goes to `needs_relaxation`. Never sends free text across sides.
 
 **Advocates (one per person):**
 - See only their own person's private data.
 - **Allowed moves:** `ACCEPT`, `REJECT` (no reason crosses over), and privately asking their own human to relax a constraint.
-- v1 logic is **deterministic**: accept if all hard constraints pass and the proposal gives at least that person's fair share by their own valuations. The LLM only writes messages to its own person.
-- For every decision, writes a one-line **inner monologue** to `advocate_notes` (e.g. "Gives me the dog, buyout is under my cap. ACCEPT"). Only the judge view reads it. It is never sent to anyone.
+- v1 logic is **deterministic**. Accept only if all of these hold:
+  - total payment (buyout + deposit payback, if any) is under the person's cap
+  - every dealbreaker is met (for a pet, "lives with me" means full-time or primary with ex on weekends)
+  - the move-out date is inside the person's window
+  - the proposal gives at least their fair share by their own valuations (deposit excluded)
+- The LLM only writes messages to its own person.
+- **Relaxation:** when stuck, the advocate looks at the rejected proposals and asks its person for the smallest change that would have made one pass (e.g. "would you go up to $1,615?").
+- For every decision, writes a one-line **inner monologue** to `advocate_notes` (e.g. "Total $1,615 is over my $1,600 cap. REJECT"). Only the judge view reads it. It is never sent to anyone.
 
 **Leak filter (every outbound message):**
-1. Block any number that matches the *other* person's private valuations or constraints.
-2. LLM yes/no check: does this reveal anything the other person marked private?
-3. Log every block to `leak_events`.
+There are two kinds of outbound messages. **Proposals and the agreement** are filled into fixed templates from structured data, with no LLM text. **Agent messages** are LLM text sent to the agent's own person.
+1. **Number/date match.** Block any dollar amount or date that matches one of the *other* person's private values (valuations, cap, window).
+   - **Exception:** numbers and dates that appear in a proposal or agreement from this case. Those already crossed the wire by design. Without this exception, the filter would block the agreement itself, because the buyout and the move-out date come straight from both people's private numbers.
+   - Match dollar amounts (normalize `$1,500`, `1500 dollars`, `1.5k`) and dates only, not bare small numbers like "round 2."
+   - A person's **own** numbers are always fine to say back to them.
+2. **LLM yes/no check:** does this reveal anything from the other person's private data?
+3. Log every block to `leak_events` (never store the blocked content).
 
-**Pets:** v1 treats a pet as an indivisible item. v2 (stretch): options like "A keeps," "B keeps," "shared every other weekend," each valued by both people.
+Known, accepted leak: the final buyout and move-out date are functions of both people's private numbers (the date is always the edge of someone's window). That's unavoidable in any agreement. We never say which constraint drove the result (privacy rule 7).
 
 ---
 
@@ -186,7 +240,8 @@ Reply YES to confirm.
 
 ```sql
 cases        (id uuid pk, code text unique, status text, created_at timestamptz)
-             -- status: inviting | intake | negotiating | needs_relaxation | agreed | closed
+             -- status: inviting | intake | negotiating | needs_relaxation | awaiting_confirmation | closed
+             -- awaiting_confirmation = agreement sent, waiting on both YES replies
 participants (id uuid pk, case_id fk, handle text, role text, display_name text, intake_done bool,
               invite_sent_at timestamptz, joined_at timestamptz)
              -- role: 'A' | 'B'; handle = phone number (E.164) / iMessage ID
@@ -194,14 +249,29 @@ participants (id uuid pk, case_id fk, handle text, role text, display_name text,
              -- invite_sent_at set once, never re-sent.
 opt_outs     (handle text pk, created_at timestamptz)
              -- anyone who replied STOP. Checked before every invite, across all cases.
-items        (id uuid pk, case_id fk, name text, kind text, added_by fk participants)
-             -- kind: item | lease | pet | deposit | subscription; name is visible to both
-valuations   (participant_id fk, item_id fk, value_cents int, visibility text default 'private',
-              pk(participant_id, item_id))                                  -- PRIVATE
-constraints  (id uuid pk, participant_id fk, kind text, value jsonb, visibility text default 'private')
-             -- kind: max_buyout_cents | must_keep_item | move_out_window | other  -- PRIVATE
-proposals    (id uuid pk, case_id fk, round int, allocation jsonb, transfer jsonb, status text, created_at)
-             -- allocation: { item_id: participant_id }; transfer: { from, to, amount_cents }
+items        (id uuid pk, case_id fk, name text, kind text, added_by fk participants, amount_cents int)
+             -- kind: item | lease | pet | subscription | lease_break_fee; name is visible to both
+             -- amount_cents: only for lease_break_fee (the landlord's fee, a fact both confirm; NOT private)
+valuations   (participant_id fk, item_id fk, outcome text, value_cents int,
+              pk(participant_id, item_id, outcome))                         -- PRIVATE
+             -- outcome: 'keep' for item | lease | subscription (lease and subscription may be negative;
+             --          for the lease, 'keep' = value of staying vs. both moving out)
+             --          'full' | 'primary' | 'visits' for pets
+             --          'pay' for lease_break_fee (negative: what taking on the whole fee costs you)
+deposit_contributions (case_id fk, participant_id fk, amount_cents int, pk(case_id, participant_id))
+             -- NOT private: shown to the other person to confirm.
+constraints  (id uuid pk, participant_id fk, kind text, value jsonb)        -- PRIVATE, advocate only
+             -- kind: max_payment_cents | must_keep_item | move_out_window | other
+             -- move_out_window is also read by the mediator; the rest are not.
+proposals    (id uuid pk, case_id fk, round int, allocation jsonb, transfer jsonb, move_out_date date,
+              status text, created_at)
+             -- allocation: { item_id: { to: participant_id | null, weekends: participant_id | null } }
+             --   to = null means cancelled (subscription) or both move out (lease);
+             --   for lease_break_fee, to = who pays the landlord (only present when both move out);
+             --   weekends set only for shared pets
+             -- transfer: { from, to, buyout_cents, deposit_cents, total_cents }
+             --   deposit_cents = 0 when both move out; the refund split goes in deposit_split
+             -- deposit_split (in transfer): { participant_id: share_pct } when both move out, else null
              -- status: pending | accepted | rejected | superseded
 decisions    (proposal_id fk, participant_id fk, decision text, created_at, pk(proposal_id, participant_id))
              -- decision: accept | reject. No reason column, on purpose.
@@ -218,7 +288,34 @@ advocate_notes (id uuid pk, case_id fk, proposal_id fk, participant_id fk, note 
 ## 8. Features the demo depends on (PROPOSED)
 
 These must exist for the demo:
-- **Rogue mode** (flag on one advocate): it tries to send a free-text question across ("what's Alex's max buyout?"). The protocol rejects the message type and the leak filter logs it to `leak_events`.
+- **A conflict.** The demo must show at least one `REJECT` before the deal lands, so judges see the advocates actually protect their person. See the scenario below.
+- **Rogue mode** (flag on one advocate): it tries to send a free-text question across ("what's Alex's max payment?"). The protocol rejects the message type and the leak filter logs it to `leak_events`.
+
+### Demo scenario (fake data)
+Use this seed data so the demo hits a reject in round 1 and agrees in round 2. The math is checked; if you change a number, recheck the rounds.
+
+| | Alex | Sam |
+|---|---|---|
+| Apartment (lease) | $1,500 | $1,410 |
+| Biscuit: full-time with me | $900 | $400 |
+| Biscuit: with me, ex every other weekend | $800 | $350 |
+| Biscuit: with ex, me every other weekend | $300 | $250 |
+| Couch | $200 | $300 |
+| TV | $250 | $200 |
+| Spotify | $0 | $0 |
+| Deposit paid | $750 | $750 |
+| Move-out window | Nov 15 to Dec 31 | Nov 1 to Nov 30 |
+| Max total payment *(advocate only)* | $1,600 | none |
+| Dealbreaker *(advocate only)* | Biscuit lives with me | none |
+
+Fair shares: `F_A = (1500+900+200+250+0)/2 = $1,425`, `F_B = (1410+400+300+200+0)/2 = $1,155`. Biscuit goes to "Alex + Sam every other weekend" (total $1,050, the best of the four). Spotify is cancelled. Move-out date is Nov 30.
+
+| Round | Allocation | Buyout | + Deposit | Total | Alex | Sam |
+|---|---|---|---|---|---|---|
+| 1 (best total value) | Alex: apt, Biscuit, **TV** · Sam: couch, Biscuit weekends | $865 | $750 | $1,615 | **REJECT** (over $1,600 cap) | ACCEPT |
+| 2 (next best: TV moves to Sam, -$50 total) | Alex: apt, Biscuit · Sam: couch, **TV**, Biscuit weekends | $640 | $750 | $1,390 | ACCEPT | ACCEPT |
+
+Round 2 check: Alex ends at $2,300 - $640 = $1,660 (fair share $1,425), and Sam at $750 + $640 = $1,390 (fair share $1,155). Both are exactly $235 above fair share, so the surplus `S = $470` is split evenly.
 
 ### Judge view
 A web page on the demo laptop that shows judges the advocates negotiating. The exes never see it.
@@ -230,11 +327,12 @@ A web page on the demo laptop that shows judges the advocates negotiating. The e
 | (private)        |     (the wire)         |  (private)       |
 |                  |                        |                  |
 | values: dog $900 | Round 2 proposal:      | values: dog $400 |
-| max buyout: $800 | Alex: apt, dog         | must leave by    |
-|                  | Sam: couch, TV         |   Nov 30         |
-| "Gives me the    | Alex pays Sam $640     | "Under my move-  |
-|  dog, buyout is  |                        |  out date, above |
-|  under my cap."  | Alex: ACCEPT           |  my fair share." |
+| max pay: $1,600  | Alex: apt, Biscuit     | move out by      |
+|                  | Sam: couch, TV,        |   Nov 30         |
+|                  |   Biscuit alt. wkends  |                  |
+| "Total $1,390 is | Alex pays Sam $1,390   | "Out by Nov 30,  |
+|  under my cap."  |                        |  above my fair   |
+|                  | Alex: ACCEPT           |  share."         |
 |  -> ACCEPT       | Sam:  ACCEPT           |  -> ACCEPT       |
 +------------------+------------------------+------------------+
 ```
@@ -245,7 +343,7 @@ A web page on the demo laptop that shows judges the advocates negotiating. The e
 - **X-ray toggle.** Side lanes start **blurred** so judges first see only the middle ("this is all that ever crosses"). Flipping the toggle unblurs them ("here's what each agent knows, and none of it crossed").
 - **Demo pacing flag.** The real negotiation takes milliseconds. With the flag on, wait ~1.5s between moves so judges can follow.
 - **Animated flow:** proposal card appears in the middle, each side lights up green (accept) or red (reject), round counter ticks, final agreement pops.
-- **Math panel:** each person's fair share, the surplus, and the transfer, so judges see *why* the buyout is $640.
+- **Math panel:** each person's fair share, the surplus, the buyout, and the deposit payback as a separate line, so judges see *why* the buyout is $640.
 - **Rogue mode display:** the blocked free-text message shows in red in the middle lane ("BLOCKED: free text not allowed"), plus the `leak_events` entry.
 
 **Rules**
@@ -259,7 +357,7 @@ A web page on the demo laptop that shows judges the advocates negotiating. The e
 | Hours | Goal |
 |---|---|
 | 0 to 2 | Photon hello world (terminal provider), Neon schema, router, case codes |
-| 2 to 6 | Intake agent: items, valuations, constraints, private/share confirmation |
+| 2 to 6 | Intake agent: items, pet options, subscriptions, deposit, move-out window, constraints |
 | 6 to 10 | Mediator + advocates, unit-tested with fake data |
 | 10 to 14 | End-to-end on iMessage with two real iPhones |
 | 14 to 18 | Leak filter, round cap, rogue mode, relaxation flow |
@@ -275,8 +373,8 @@ A web page on the demo laptop that shows judges the advocates negotiating. The e
 - [ ] Photon booth: if our iMessage line texts an Android number, does it fall back to SMS/RCS, and does that need carrier (10DLC) registration? If yes and no, we get Android for free.
 - [ ] Photon booth: on the shared-pool line, does `im.space.create` to a brand-new number work on the free plan?
 - [ ] Photon and Neon prize requirements (MHacks prizes page, behind login)
-- [ ] Pets: indivisible in v1, or build shared-custody options?
 - [ ] Does the item list need both people to approve it before valuations start?
+- [ ] What happens if someone replies `NO` (or anything other than `YES`) to the agreement? Back to relaxation, or the case ends?
 
 ## 11. Team and ownership
 
