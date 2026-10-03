@@ -7,13 +7,19 @@
 // the status alone: the conversation side sends the agreement and sets 'awaiting_confirmation'.
 // Relaxing a constraint should UPDATE the person's existing constraint row, not add a second one
 // (an advocate applies every cap row it sees, so the old, stricter cap would still win).
+//
+// Rogue mode: with ROGUE_MODE=B (or A), that advocate tries once, on the first proposal, to send a
+// free-text question across. The protocol blocks it and logs it to leak_events; the deal is unaffected.
 
 import { setTimeout as sleep } from 'node:timers/promises';
 import { query } from '../db/client.ts';
 import type { Negotiate, RelaxAsk } from '../shared/contract.ts';
-import type { Constraint, DepositContribution, IsoDate, Item, Participant, Uuid, Valuation } from '../shared/types.ts';
-import { decide, relaxAsk, type AdvocateView, type ProposalTerms } from './advocate.ts';
+import type {
+  Constraint, Decision, DepositContribution, IsoDate, Item, Participant, Role, Uuid, Valuation,
+} from '../shared/types.ts';
+import { decide, relaxAsk, rogueAttempt, type AdvocateView, type ProposalTerms } from './advocate.ts';
 import { candidates, type MoveOutWindow } from './mediator.ts';
+import { checkWire } from './protocol.ts';
 
 /** Max proposals per negotiate() call, so a side can't probe the other's limits (privacy rule 4). */
 export const ROUND_CAP = 5;
@@ -59,6 +65,9 @@ export const negotiate: Negotiate = async (caseId) => {
   const [previous] = await query<{ last: number }>(
     'select coalesce(max(round), 0)::int as last from proposals where case_id = $1', [caseId]);
 
+  const rogue = rogueRole();
+  let rogueTried = false;
+
   const rejected: ProposalTerms[] = [];
   let round = previous!.last;
   for (const candidate of candidates({ a: a.id, b: b.id, items, valuations, deposits, windows })) {
@@ -77,13 +86,20 @@ export const negotiate: Negotiate = async (caseId) => {
 
     let allAccept = true;
     for (const { participant, view } of advocates) {
+      const other = participant.id === a.id ? b : a;
+
+      if (participant.role === rogue && !rogueTried) {
+        rogueTried = true;
+        await sendAcross(caseId, proposalId, participant, other, rogueAttempt(other.display_name ?? 'your ex'));
+        await pace();
+      }
+
       const { decision, note } = decide(view, terms);
       // decisions has no reason column on purpose; the note goes to advocate_notes (judge view only).
-      await query('insert into decisions (proposal_id, participant_id, decision) values ($1, $2, $3)',
-        [proposalId, participant.id, decision]);
       await query('insert into advocate_notes (case_id, proposal_id, participant_id, note) values ($1, $2, $3, $4)',
         [caseId, proposalId, participant.id, note]);
-      if (decision === 'reject') allAccept = false;
+      const sent = await sendAcross(caseId, proposalId, participant, other, { type: decision });
+      if (sent !== 'accept') allAccept = false;
       await pace();
     }
 
@@ -105,6 +121,36 @@ export const negotiate: Negotiate = async (caseId) => {
   }
   return { status: 'needs_relaxation', asks };
 };
+
+/**
+ * The only way an advocate's message reaches the other side. ACCEPT / REJECT is recorded in
+ * `decisions`. Anything else is refused: `leak_events` gets the reason only (never the content),
+ * and the attempt goes in the sender's own advocate_notes so the judge view can show it in that
+ * advocate's private lane. Returns the decision that crossed, or null if it was blocked.
+ */
+async function sendAcross(
+  caseId: Uuid, proposalId: Uuid, from: Participant, to: Participant, message: unknown,
+): Promise<Decision | null> {
+  const check = checkWire(message);
+  if (check.ok) {
+    await query('insert into decisions (proposal_id, participant_id, decision) values ($1, $2, $3)',
+      [proposalId, from.id, check.decision]);
+    return check.decision;
+  }
+  await query('insert into leak_events (case_id, target_participant_id, reason) values ($1, $2, $3)',
+    [caseId, to.id, `${check.reason} (from ${from.role}'s advocate)`]);
+  const text = (message as { text?: unknown } | null)?.text;
+  await query('insert into advocate_notes (case_id, proposal_id, participant_id, note) values ($1, $2, $3, $4)',
+    [caseId, proposalId, from.id, `ROGUE: tried to send "${typeof text === 'string' ? text : '?'}" across. ${check.reason}`]);
+  return null;
+}
+
+/** ROGUE_MODE=A or B picks which advocate goes rogue (true means B). Anything else is off. */
+function rogueRole(): Role | null {
+  const flag = (process.env.ROGUE_MODE ?? '').trim().toUpperCase();
+  if (flag === 'A' || flag === 'B') return flag;
+  return flag === 'TRUE' ? 'B' : null;
+}
 
 /** Demo pacing (AGENTS.md section 8): wait between moves so judges can follow. Off unless DEMO_PACING_MS > 0. */
 function pace(): Promise<void> {

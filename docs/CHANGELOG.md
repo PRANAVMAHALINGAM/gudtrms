@@ -12,6 +12,15 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-03 17:02 ET · Shruti
+- **Rogue mode is in.** `ROGUE_MODE=B` (or `A`; `true` means B) makes that advocate try once, on the first proposal, to send "what's Alex's max payment?" across. The protocol gate (`src/engine/protocol.ts`) only lets `{ type: 'accept' | 'reject' }` cross and refuses everything else, including a decision with a reason attached. The deal itself is unaffected.
+- **Where the blocked message goes:** `leak_events` gets the reason only (`BLOCKED: free text not allowed (from B's advocate)`), never the content, per section 7. The attempted question goes in the rogue advocate's own `advocate_notes` (judge view only), so the judge view can show it in that side lane and the BLOCKED line in the middle.
+- Every advocate decision now goes through the same gate before it's written to `decisions`.
+- Checked on Neon: with rogue mode on, one `leak_events` row and the deal still lands in round 2; with it off, none. `npm run demo:negotiate` now prints `leak_events`.
+- Documented `ROGUE_MODE` and `DEMO_PACING_MS` values in `.env.example`.
+- Updated my rows in the section 11 status table.
+- Files: `src/engine/protocol.ts`, `src/engine/protocol.test.ts`, `src/engine/advocate.ts`, `src/engine/index.ts`, `db/negotiate-demo.ts`, `.env.example`, `AGENTS.md` (section 11)
+
 ### 2026-10-03 · Pranav
 - Added `npm run msg:test -- <phone> ["text"]`: texts one number first through the adapter, then exits. Use it to check the Photon line without starting the full app.
 - First real iMessage attempt: the Spectrum keys authenticate, but the send fails with `PERMISSION_DENIED: Target not allowed for this project`. The Photon project seems to only text allowlisted numbers, so each demo phone (and B's number) has to be added in the dashboard first (Photon docs confirm this: Free/Pro shared-pool lines only text registered users; Business plan has no allowlist). **Confirmed:** being a user isn't enough. Sends kept failing until Rachel texted her assigned pool line once; right after that, `msg:test` to her went through. So on the shared pool, someone must be (1) added as a project user and (2) have texted their line before gudtrms can text them. Note each user gets their own pool line (`assignedPhoneNumber`), so A and B text different numbers. That clashes with "gudtrms texts B first" for numbers we don't know ahead of time, so ask the Photon booth.

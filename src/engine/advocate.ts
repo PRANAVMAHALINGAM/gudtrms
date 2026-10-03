@@ -98,6 +98,14 @@ export function relaxAsk(view: AdvocateView, rejected: ProposalTerms[]): RelaxAs
   return cap ?? window ?? mustKeep;
 }
 
+/**
+ * Rogue mode (AGENTS.md section 8, demo only): the advocate tries to send a free-text question
+ * across instead of ACCEPT / REJECT. The protocol must refuse it (see protocol.ts).
+ */
+export function rogueAttempt(otherName: string): { type: 'free_text'; text: string } {
+  return { type: 'free_text', text: `what's ${otherName}'s max payment?` };
+}
+
 function describe(c: Check): string {
   switch (c.kind) {
     case 'max_payment':

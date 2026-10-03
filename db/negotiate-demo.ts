@@ -1,6 +1,7 @@
 // `npm run demo:negotiate`: runs negotiate() on the seeded demo case and prints what crossed the wire
 // (proposals and accept / reject, no reasons). Run `npm run db:reset` first for a clean case.
 // Expected: round 1 rejected ($1,615), round 2 agreed ($1,390), move-out Nov 30.
+// With ROGUE_MODE=B, also one leak_events line: Sam's advocate tried to send free text and was blocked.
 
 import { closePool, query } from '../src/db/client.ts';
 import { negotiate } from '../src/engine/index.ts';
@@ -29,5 +30,7 @@ for (const p of proposals) {
   const votes = decisions.filter((d) => d.proposal_id === p.id).map((d) => `${who(d.participant_id)} ${d.decision.toUpperCase()}`);
   console.log(`Round ${p.round} · ${p.status}\n  ${gets.join(' · ')}\n  ${money} · out by ${p.move_out_date}\n  ${votes.join(', ')}`);
 }
+const leaks = await query<{ reason: string }>('select reason from leak_events where case_id = $1 order by created_at', [caseId]);
+for (const l of leaks) console.log(`leak_events: ${l.reason}`);
 console.log('\nnegotiate() returned:', JSON.stringify(result));
 await closePool();
