@@ -12,6 +12,14 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-03 17:05 ET · Shruti
+- **Scaffold is in.** Node + TypeScript via `tsx` (no build step). Neon via `@neondatabase/serverless`, Photon via `spectrum-ts`. Pull, run `npm install`, and start in your own folders.
+- `db/schema.sql` (section 7 as SQL) and `npm run db:reset`, which **wipes** the database and loads the demo scenario. Use your own Neon branch. Checked on in-memory Postgres; not yet run against Neon.
+- `src/shared/`: `types.ts` (row types; `Transfer` amounts are netted into one direction), `contract.ts` (`Negotiate`, `SendTo`, `RelaxAsk`), `demoScenario.ts` (the section 8 data with fixed ids, plus a test).
+- Stubs: `negotiate()` in `src/engine/index.ts` (gives everything to A and always agrees) and `sendTo()` in `src/privacy/sendTo.ts` (prints instead of sending). Replace them, but keep the names and signatures.
+- `src/index.ts`: Photon hello world on the terminal provider (works); the iMessage config is in a comment. Owner folders have READMEs; `README.md` has setup steps and the layout.
+- Files: `package.json`, `package-lock.json`, `tsconfig.json`, `.env.example`, `db/`, `src/`, `judge/README.md`, `README.md`
+
 ### 2026-10-03 16:40 ET · Shruti
 - **Split the work.** Pranav takes the conversation side: Photon, router, intake agent, agreement/YES/relaxation messages, leak filter. Shruti takes the negotiation side: Neon schema + seed, mediator, advocates, rogue mode, judge view.
 - Defined the contract between the halves: `negotiate(caseId)` (Shruti) and `sendTo(participantId, text)` (Pranav), plus the Neon tables. Sync points are at ~11 PM and ~3 AM.
