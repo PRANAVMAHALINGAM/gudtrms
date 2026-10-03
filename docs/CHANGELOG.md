@@ -12,6 +12,17 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-03 16:30 ET · Shruti
+- **`negotiate()` is real** (replaces the stub, same signature). It loads the case from Neon, the mediator proposes, and both advocates decide, for up to 5 rounds (`ROUND_CAP`). Every proposal, decision, and advocate note is written as it happens so the judge view can poll it. `DEMO_PACING_MS` > 0 waits between moves; leave it at 0 when not demoing.
+- **Checked on Neon:** the demo case gives round 1 rejected ($1,615), round 2 agreed ($1,390, Nov 30), exactly as in section 8. With caps on both sides it stops after 5 rounds, sets `needs_relaxation`, and asks both people.
+- **Pranav, three things for your side:**
+  - On `agreed`, the case status is left alone. You send the agreement and set `awaiting_confirmation`. On `needs_relaxation`, `negotiate()` sets the status itself.
+  - When someone relaxes a constraint, **update their existing constraint row**; don't insert a second one. Advocates apply every cap row they see, so the old, stricter cap would still win.
+  - Rounds keep counting across calls (a call after relaxation starts at round 6), and each call gets its own 5 rounds.
+- If the move-out windows don't overlap, there's no proposal at all. The person whose window ends first is asked to stretch it by a fixed 14 days, never to the other person's date, which would leak it.
+- New `npm run demo:negotiate`: runs `negotiate()` on the seeded demo case and prints what crossed the wire. Run `npm run db:reset` first.
+- Files: `src/engine/index.ts`, `db/negotiate-demo.ts`, `package.json`
+
 ### 2026-10-03 16:25 ET · Shruti
 - **Neon is live.** Project `gudtrms` with branches `production` (kept clean for the demo), `shruti`, and `pranav`, all set to never auto-delete. `npm run db:reset` checked against Neon: every table is created and the demo case `4F7K` loads. Pranav: I'll add you to the project; copy the connection string for the `pranav` branch into your own `.env`.
 - **`date` columns now come back as `'YYYY-MM-DD'` strings**, not JS `Date` objects, matching `IsoDate` in `src/shared/types.ts`. A `Date` can print as the wrong day depending on timezone (bad for "moves out by Nov 30").
