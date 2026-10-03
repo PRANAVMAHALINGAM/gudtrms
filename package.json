@@ -13,7 +13,8 @@
     "demo:negotiate": "tsx --env-file-if-exists=.env db/negotiate-demo.ts",
     "test": "tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
-    "msg:test": "tsx --env-file-if-exists=.env src/messaging/send-test.ts"
+    "msg:test": "tsx --env-file-if-exists=.env src/messaging/send-test.ts",
+    "sim:router": "tsx --env-file-if-exists=.env db/router-sim.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

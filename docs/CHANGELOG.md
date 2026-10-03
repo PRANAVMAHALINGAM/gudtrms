@@ -12,6 +12,16 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-03 19:30 ET · Pranav
+- **Router is in** (`src/router/`), replacing the echo in `src/index.ts`. Handles `start` → A's name → ex's name + number → the one fixed invite; `JOIN` or the case code; `STOP` (opt-out list, closes the case, tells the other side only "they didn't join" / "the case ended"); `YES` once the agreement has been sent. Everything else goes to the intake agent, which is a stub for now (`src/intake/index.ts`, same signatures the real one will use).
+- Privacy choices: one generic "can't invite that number" reply whether the number opted out, is A's own, or is already in a case, so A can't probe. Someone who said STOP gets no replies unless they text `start` or a code themselves (that opts them back in). Case codes always contain a digit so they can't spell JOIN/STOP.
+- If Photon refuses the invite (number not a project user yet, see the Photon notes below), A gets the case code to pass on; B can join by texting it from any number.
+- **YES confirmation** in `src/conversation/confirm.ts`. **Agreement writer: insert the `agreements` row only after sending the text to both people.** That row is how the router knows YES counts.
+- `npm run sim:router` plays both people through every flow against Neon with fake +1555020xxxx numbers and checks each reply. Cleans up after itself; doesn't touch the demo seed. All passing. New `captureOutbound()` in the messaging adapter makes this possible.
+- Ran `db:reset` on my own (empty) Neon branch to create the schema.
+- **Tested on two real iPhones over iMessage:** A texted `start`, gave their name and B's (+91) number, B got the invite and replied `JOIN`, case went to `intake`, both got the intake intro. No errors.
+- Files: `src/router/*`, `src/intake/index.ts`, `src/conversation/confirm.ts`, `src/index.ts`, `src/messaging/index.ts`, `src/messaging/README.md`, `db/router-sim.ts`, `package.json`, `AGENTS.md` (section 11 status)
+
 ### 2026-10-03 18:45 ET · Shruti
 - **Re-checked everything on my side:** typecheck (no unused code), all 20 tests, and the demo on Neon (normal and rogue) all pass and match section 8.
 - **Fixed: `negotiate()` could run twice on one case.** The messaging adapter handles A's and B's messages in parallel, so if both finish intake at the same moment, both could call it and write duplicate rounds. Now it claims the case first (`intake` / `needs_relaxation` → `negotiating`, atomically). A second call throws "already being negotiated by another call", which is safe to ignore. If a run fails mid-way, the case goes back to its previous status and any half-written proposal is marked `superseded`. Checked on Neon with two simultaneous calls and with a forced failure.

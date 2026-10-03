@@ -33,6 +33,13 @@ const handleByTerminalChat = new Map<string, string>();
 /** One promise chain per handle, so one person's messages are handled in order without blocking the other. */
 const queues = new Map<string, Promise<void>>();
 
+/** Simulations and tests: when set, sendToHandle calls this instead of sending anything. */
+let capture: ((handle: string, text: string) => void | Promise<void>) | undefined;
+
+export function captureOutbound(fn: typeof capture): void {
+  capture = fn;
+}
+
 export function messagingProvider(): MessagingProvider {
   return process.env.MESSAGING_PROVIDER === 'imessage' ? 'imessage' : 'terminal';
 }
@@ -112,6 +119,7 @@ export async function startMessaging(onMessage: InboundHandler): Promise<void> {
  * through `sendTo` in src/privacy instead.
  */
 export async function sendToHandle(handle: string, text: string): Promise<void> {
+  if (capture) return capture(handle, text);
   if (!conn) throw new Error('Messaging is not started. Call startMessaging first.');
   let space = spaceByHandle.get(handle);
   if (!space) {

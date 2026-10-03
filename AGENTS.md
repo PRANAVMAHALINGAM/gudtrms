@@ -384,7 +384,7 @@ Split: **Pranav = conversation side** (everything a human sees over iMessage). *
 | Area | Owner | Folder | Status |
 |---|---|---|---|
 | Photon setup + messaging adapter (incl. invite to a new number) | Pranav | `src/messaging/` | adapter done on terminal; iMessage untested |
-| Router (keyword × case state) | Pranav | `src/router/` | not started |
+| Router (keyword × case state) | Pranav | `src/router/` | done (start, invite, JOIN/code, STOP, YES); checked on Neon with `npm run sim:router` |
 | Intake agent (LLM) | Pranav | `src/intake/` | not started |
 | Agreement text, YES confirmation, relaxation prompts | Pranav | `src/conversation/` | not started |
 | Leak filter (wraps every outbound send) | Pranav | `src/privacy/` | not started |
