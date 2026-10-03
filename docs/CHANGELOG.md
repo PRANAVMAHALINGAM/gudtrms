@@ -13,6 +13,15 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 ---
 
 ### 2026-10-03 · Pranav
+- Added `npm run msg:test -- <phone> ["text"]`: texts one number first through the adapter, then exits. Use it to check the Photon line without starting the full app.
+- First real iMessage attempt: the Spectrum keys authenticate, but the send fails with `PERMISSION_DENIED: Target not allowed for this project`. The Photon project seems to only text allowlisted numbers, so each demo phone (and B's number) has to be added in the dashboard first (Photon docs confirm this: Free/Pro shared-pool lines only text registered users; Business plan has no allowlist). **Confirmed:** being a user isn't enough. Sends kept failing until Rachel texted her assigned pool line once; right after that, `msg:test` to her went through. So on the shared pool, someone must be (1) added as a project user and (2) have texted their line before gudtrms can text them. Note each user gets their own pool line (`assignedPhoneNumber`), so A and B text different numbers. That clashes with "gudtrms texts B first" for numbers we don't know ahead of time, so ask the Photon booth.
+- **Shared pool = phone-number handles only.** Photon auto-replies to email-based iMessage handles (e.g. a Mac signed in with just an Apple ID) that it "can't route it to the right agent." So every demo participant needs an iPhone (or a Mac sending from an iPhone's number). Email handles need the Business plan's dedicated line.
+- Non-US numbers work on the shared pool (tested a +91 iPhone both ways). Current test users: Ross (+91) texts on +1 415-202-4086, Rachel texts on +1 628-789-6792.
+- **Inbound works too**, but restart the app after adding/removing Photon users: a bot started before Rachel was re-created never saw her texts; a fresh one got her (held) message right away.
+- New `MESSAGING_DEBUG=1` flag in the adapter logs connection + per-event metadata (direction, type, sender handle), never message text.
+- Files: `src/messaging/send-test.ts`, `src/messaging/index.ts`, `package.json`
+
+### 2026-10-03 · Pranav
 - **Messaging adapter is in** (`src/messaging/`). It's the only code that imports spectrum-ts. API: `startMessaging(onMessage(handle, text))`, `sendToHandle(handle, text)`, `stopMessaging()`. Handles are E.164 phone numbers. Choose the provider with `MESSAGING_PROVIDER=terminal|imessage` (new in `.env.example`).
 - The terminal provider supports several chats, so texting a new number opens a new chat window for it. You can play A and B in one terminal, with no dev shim.
 - Messages are queued per handle: one person's messages run in order, and a slow LLM call for A doesn't block B. Message text is never logged.

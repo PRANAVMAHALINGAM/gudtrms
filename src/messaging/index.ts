@@ -82,8 +82,16 @@ export async function startMessaging(onMessage: InboundHandler): Promise<void> {
   if (conn) throw new Error('startMessaging was already called.');
   const c = await connect(messagingProvider());
   conn = c;
+  // MESSAGING_DEBUG=1 logs connection and event metadata (never message text).
+  const debug = process.env.MESSAGING_DEBUG === '1';
+  if (debug) console.log(`[messaging] connected via ${c.provider}, waiting for messages`);
 
   for await (const [space, message] of c.messages) {
+    if (debug) {
+      console.log(
+        `[messaging] event direction=${message.direction} type=${message.content.type} sender=${message.sender?.id ?? '(none)'} space=${space.id}`,
+      );
+    }
     if (message.direction !== 'inbound' || message.content.type !== 'text') continue;
     const handle = handleFor(c, space, message);
     if (!handle) continue;

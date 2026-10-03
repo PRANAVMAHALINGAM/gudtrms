@@ -12,7 +12,8 @@
     "db:reset": "tsx --env-file-if-exists=.env db/reset.ts",
     "demo:negotiate": "tsx --env-file-if-exists=.env db/negotiate-demo.ts",
     "test": "tsx --test \"src/**/*.test.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "msg:test": "tsx --env-file-if-exists=.env src/messaging/send-test.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
