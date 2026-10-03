@@ -1,6 +1,6 @@
 # gudtrms
 
-> **gudtrms** = "good terms." An iMessage mediator for breakups where each person gets their own AI advocate, and the deal gets made without anyone's secrets leaking.
+> **gudtrms** = "good terms." A WhatsApp mediator for breakups where each person gets their own AI advocate, and the deal gets made without anyone's secrets leaking.
 
 **Event:** MHacks 2026 (Oct 3 to 4, 2026, 24 hours, Ann Arbor)
 
@@ -13,14 +13,14 @@
 - **After every change** (code or decisions): add an entry to the top of `docs/CHANGELOG.md`. Keep it short: what changed, why, which files.
 - Sections marked **DECIDED** are agreed by the team. Don't change them without a changelog entry explaining why.
 - Sections marked **PROPOSED** are implementation suggestions. Change them freely, but log it.
-- Never put secrets (Photon project ID/secret, Neon connection string, LLM API keys) in any file in the repo. Use `.env`, and keep `.env` in `.gitignore`.
+- Never put secrets (Photon project ID/secret, WhatsApp access token and app secret, Neon connection string, LLM API keys) in any file in the repo. Use `.env`, and keep `.env` in `.gitignore`.
 
 ---
 
 ## 1. What we're building (DECIDED)
 
 - **Problem:** married couples get courts and mediators when they split up. Unmarried couples and roommates who live together get nothing, just a fight over the couch.
-- **Product:** each person texts gudtrms over iMessage and gets their own **advocate agent**. The two advocates negotiate through a **mediator**, and both people end up with a written agreement covering who keeps what and who owes whom.
+- **Product:** each person messages gudtrms on WhatsApp and gets their own **advocate agent**. The two advocates negotiate through a **mediator**, and both people end up with a written agreement covering who keeps what and who owes whom.
 - **The key promise:** you can tell your agent the truth, and your ex never sees it. Privacy is enforced by how the system is built, not by trust.
 
 ---
@@ -44,15 +44,22 @@
 
 | Area | Decision | Why |
 |---|---|---|
-| Messaging | **Photon Spectrum** (`spectrum-ts`) over **iMessage** | Zero install for users |
-| Dev / fallback | Spectrum **terminal provider** for local dev; **Telegram provider** if the iMessage line isn't ready | Same agent code, swap the provider |
+| Messaging | **Photon Spectrum** (`spectrum-ts`) over **WhatsApp**, using Spectrum's WhatsApp Business provider (official WhatsApp Business Cloud API) | Everyone already has WhatsApp; works on Android and iPhone |
+| Dev / fallback | Spectrum **terminal provider** for local dev; **Telegram provider** if WhatsApp setup is blocked | Same agent code, swap the provider |
 | Language | **TypeScript** (Node or Bun) | Photon's SDK is TypeScript |
 | Database | **Neon** (hosted Postgres) | Plain Postgres, no learning curve |
 | Agents | Advocates + mediator are **plain modules in our backend**, no agent framework | Effort goes into negotiation and privacy |
 | Payments | **None** | Not core |
 | LLM | **TBD** | See open questions |
 
-**Rejected:** Fetch.ai (whole workflow must live in ASI:One, too much overhead), Relay (users must install an iOS app), OpenClaw (not needed, security baggage), SpacetimeDB (new paradigm, real-time not core).
+**Rejected:** iMessage (switched to WhatsApp), Fetch.ai (whole workflow must live in ASI:One, too much overhead), Relay (users must install an iOS app), OpenClaw (not needed, security baggage), SpacetimeDB (new paradigm, real-time not core).
+
+### WhatsApp notes
+- **Credentials** (from a Meta for Developers app with WhatsApp enabled): access token, phone number ID, and app secret (verifies inbound webhook signatures). Passed to `whatsappBusiness.config({ accessToken, phoneNumberId, appSecret })`, or via env vars such as `SPECTRUM_WHATSAPP_BUSINESS_ACCESS_TOKEN` and `SPECTRUM_WHATSAPP_BUSINESS_PHONE_NUMBER_ID`. All in `.env`, never committed.
+- **1:1 chats only.** Fine for us, everything is DMs.
+- **24-hour window:** WhatsApp only allows free-form replies within 24 hours of the user's last message. Our flow always starts with the user messaging first and finishes quickly, so we don't need message templates. Don't build anything that messages a user out of the blue.
+- **Test number:** Meta's test number can only message a small allowlist of registered phone numbers. Register every teammate who'll demo. Judges won't be able to message it from their own phones.
+- **Inbound delivery:** direct mode likely needs a public HTTPS URL for Meta's webhooks (use ngrok during the hackathon). Photon's cloud mode may handle inbound through our Photon project instead. See open questions.
 
 ---
 
@@ -64,7 +71,7 @@
 - The output is a **written agreement** both people confirm.
 
 ### Privacy rules (non-negotiable)
-1. A person's private data is only readable by **their own** intake agent, **their own** advocate, and the mediator code.
+1. A person's private data is only readable by **their own** intake agent, **their own** advocate, and the mediator code. **Only exception:** the localhost-only judge view (section 8), a demo tool that runs on fake data and is never deployed.
 2. The only things that cross from one side to the other: the shared item list (names only), whether a proposal was accepted or rejected (no reasons), and the final agreement.
 3. **Only the mediator generates proposals.** Advocates cannot propose, ask the other side questions, or send free text across.
 4. **Round cap** on negotiation to prevent probing (proposed: 5 rounds).
@@ -106,7 +113,7 @@ Reply YES to confirm.
 ## 6. Architecture (PROPOSED)
 
 ```
-        iMessage via Photon Spectrum
+        WhatsApp via Photon Spectrum
    Person A's DM            Person B's DM
          |                        |
          v                        v
@@ -124,8 +131,8 @@ Reply YES to confirm.
          |
          +--> Agreement writer -> both DMs
 
-   Optional demo web page (read-only from Neon, polls every ~1s):
-   split view, redacted negotiation feed, "what your ex knows about you"
+   Judge view (localhost only, read-only from Neon, polls every ~1s):
+   three lanes (Advocate A | what crosses | Advocate B) + X-ray toggle. See section 8.
 ```
 
 **Router:** maps an incoming handle to a participant and case. Handles `start`, case-code joins, and `YES` confirmations; routes everything else to that person's intake agent or relaxation prompt.
@@ -146,6 +153,7 @@ Reply YES to confirm.
 - See only their own person's private data.
 - **Allowed moves:** `ACCEPT`, `REJECT` (no reason crosses over), and privately asking their own human to relax a constraint.
 - v1 logic is **deterministic**: accept if all hard constraints pass and the proposal gives at least that person's fair share by their own valuations. The LLM only writes messages to its own person.
+- For every decision, writes a one-line **inner monologue** to `advocate_notes` (e.g. "Gives me the dog, buyout is under my cap. ACCEPT"). Only the judge view reads it. It is never sent to anyone.
 
 **Leak filter (every outbound message):**
 1. Block any number that matches the *other* person's private valuations or constraints.
@@ -162,7 +170,7 @@ Reply YES to confirm.
 cases        (id uuid pk, code text unique, status text, created_at timestamptz)
              -- status: intake | negotiating | needs_relaxation | agreed | closed
 participants (id uuid pk, case_id fk, handle text, role text, display_name text, intake_done bool)
-             -- role: 'A' | 'B'; handle = phone / iMessage ID
+             -- role: 'A' | 'B'; handle = WhatsApp phone number
 items        (id uuid pk, case_id fk, name text, kind text, added_by fk participants)
              -- kind: item | lease | pet | deposit | subscription; name is visible to both
 valuations   (participant_id fk, item_id fk, value_cents int, visibility text default 'private',
@@ -177,6 +185,9 @@ decisions    (proposal_id fk, participant_id fk, decision text, created_at, pk(p
 agreements   (id uuid pk, case_id fk, proposal_id fk, text text, a_confirmed bool, b_confirmed bool, created_at)
 leak_events  (id uuid pk, case_id fk, target_participant_id fk, reason text, created_at)
              -- never store the blocked content in plaintext
+advocate_notes (id uuid pk, case_id fk, proposal_id fk, participant_id fk, note text, created_at)
+             -- PRIVATE. Advocate's one-line reasoning per decision. Read ONLY by the judge view.
+             -- Kept separate so `decisions` stays reason-free.
 ```
 
 ---
@@ -185,7 +196,38 @@ leak_events  (id uuid pk, case_id fk, target_participant_id fk, reason text, cre
 
 These must exist for the demo:
 - **Rogue mode** (flag on one advocate): it tries to send a free-text question across ("what's Alex's max buyout?"). The protocol rejects the message type and the leak filter logs it to `leak_events`.
-- **Demo web page** (read-only from Neon): split view of both chats, a redacted negotiation feed ("Advocate B: rejected, reason withheld"), the leak block log, and a **"what your ex knows about you"** view (item names, yes/no decisions, final deal only).
+
+### Judge view
+A web page on the demo laptop that shows judges the advocates negotiating. The exes never see it.
+
+**Layout: three lanes**
+```
++------------------+------------------------+------------------+
+| ALEX'S ADVOCATE  |     WHAT CROSSES       |  SAM'S ADVOCATE  |
+| (private)        |     (the wire)         |  (private)       |
+|                  |                        |                  |
+| values: dog $900 | Round 2 proposal:      | values: dog $400 |
+| max buyout: $800 | Alex: apt, dog         | must leave by    |
+|                  | Sam: couch, TV         |   Nov 30         |
+| "Gives me the    | Alex pays Sam $640     | "Under my move-  |
+|  dog, buyout is  |                        |  out date, above |
+|  under my cap."  | Alex: ACCEPT           |  my fair share." |
+|  -> ACCEPT       | Sam:  ACCEPT           |  -> ACCEPT       |
++------------------+------------------------+------------------+
+```
+- **Side lanes:** that advocate's private valuations and constraints, plus its `advocate_notes` line for each decision.
+- **Middle lane:** only what actually crosses: proposals and accept/reject, no reasons. Also the final agreement.
+
+**Must-haves**
+- **X-ray toggle.** Side lanes start **blurred** so judges first see only the middle ("this is all that ever crosses"). Flipping the toggle unblurs them ("here's what each agent knows, and none of it crossed").
+- **Demo pacing flag.** The real negotiation takes milliseconds. With the flag on, wait ~1.5s between moves so judges can follow.
+- **Animated flow:** proposal card appears in the middle, each side lights up green (accept) or red (reject), round counter ticks, final agreement pops.
+- **Math panel:** each person's fair share, the surplus, and the transfer, so judges see *why* the buyout is $640.
+- **Rogue mode display:** the blocked free-text message shows in red in the middle lane ("BLOCKED: free text not allowed"), plus the `leak_events` entry.
+
+**Rules**
+- Read-only. Polls Neon every ~1s.
+- **localhost only.** Never deploy it publicly. It reads private data, which is fine only because the demo uses fake data.
 
 ---
 
@@ -196,9 +238,9 @@ These must exist for the demo:
 | 0 to 2 | Photon hello world (terminal provider), Neon schema, router, case codes |
 | 2 to 6 | Intake agent: items, valuations, constraints, private/share confirmation |
 | 6 to 10 | Mediator + advocates, unit-tested with fake data |
-| 10 to 14 | End-to-end on iMessage with two real phones |
+| 10 to 14 | End-to-end on WhatsApp with two real phones |
 | 14 to 18 | Leak filter, round cap, rogue mode, relaxation flow |
-| 18 to 21 | Demo web page |
+| 18 to 21 | Judge view |
 | 21 to 24 | Polish, backup video, Devpost, pitch rehearsal |
 
 ---
@@ -206,7 +248,8 @@ These must exist for the demo:
 ## 10. Open questions
 
 - [ ] Which LLM provider and model?
-- [ ] Photon iMessage line: got it from the Photon booth yet?
+- [ ] WhatsApp setup: Meta app created, access token + phone number ID + app secret in `.env`, demo phones registered on the test number allowlist?
+- [ ] WhatsApp inbound: does Photon's cloud mode handle it, or do we run ngrok for Meta's webhooks? (Ask the Photon booth.)
 - [ ] Photon and Neon prize requirements (MHacks prizes page, behind login)
 - [ ] Pets: indivisible in v1, or build shared-custody options?
 - [ ] Does the item list need both people to approve it before valuations start?
@@ -220,5 +263,5 @@ These must exist for the demo:
 | Mediator + advocates | TBD | not started |
 | Privacy layer (leak filter, rogue mode) | TBD | not started |
 | Neon schema + DB access | TBD | not started |
-| Demo web page | TBD | not started |
+| Judge view | TBD | not started |
 | Pitch + Devpost + video | TBD | not started |
