@@ -12,6 +12,16 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-03 · Pranav
+- **Messaging adapter is in** (`src/messaging/`). It's the only code that imports spectrum-ts. API: `startMessaging(onMessage(handle, text))`, `sendToHandle(handle, text)`, `stopMessaging()`. Handles are E.164 phone numbers. Choose the provider with `MESSAGING_PROVIDER=terminal|imessage` (new in `.env.example`).
+- The terminal provider supports several chats, so texting a new number opens a new chat window for it. You can play A and B in one terminal, with no dev shim.
+- Messages are queued per handle: one person's messages run in order, and a slow LLM call for A doesn't block B. Message text is never logged.
+- `sendTo` now looks up the participant's handle in Neon and sends through the adapter. The leak filter is still a TODO.
+- `normalizePhone()` turns typed numbers into E.164 (assumes US), with tests.
+- `src/index.ts` echoes for now, plus `ping <number>` to test texting someone first. The router replaces this.
+- Tested on the terminal provider (Windows). iMessage is typechecked but not run yet, because we don't have Spectrum keys.
+- Files: `src/messaging/index.ts`, `src/messaging/phone.ts`, `src/messaging/phone.test.ts`, `src/messaging/README.md`, `src/privacy/sendTo.ts`, `src/index.ts`, `.env.example`, `AGENTS.md` (section 11 status)
+
 ### 2026-10-03 17:05 ET · Shruti
 - **Scaffold is in.** Node + TypeScript via `tsx` (no build step). Neon via `@neondatabase/serverless`, Photon via `spectrum-ts`. Pull, run `npm install`, and start in your own folders.
 - `db/schema.sql` (section 7 as SQL) and `npm run db:reset`, which **wipes** the database and loads the demo scenario. Use your own Neon branch. Checked on in-memory Postgres; not yet run against Neon.

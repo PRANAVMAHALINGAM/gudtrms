@@ -1,22 +1,26 @@
-// Entry point (owner: Pranav). Photon hello world from the spectrum-ts quick start,
-// on the terminal provider only (build plan hour 0 to 2). Next step: hand each message
-// to the router (src/router).
+// Entry point (owner: Pranav). Connects to Photon (src/messaging) and hands each
+// inbound message to the router.
 //
-// To add iMessage once SPECTRUM_PROJECT_ID/SECRET are in .env:
-//   import { imessage } from 'spectrum-ts/providers/imessage';
-//   const app = await Spectrum({
-//     projectId: process.env.SPECTRUM_PROJECT_ID!,
-//     projectSecret: process.env.SPECTRUM_PROJECT_SECRET!,
-//     providers: [imessage.config(), terminal.config()],
-//   });
+// MESSAGING_PROVIDER=terminal (default) or imessage, set in .env.
+//
+// The router isn't built yet, so for now this echoes, plus one dev command:
+//   ping <phone number>   texts that number first, the same path B's invite will use.
+//                         On the terminal provider it opens a new chat window for that number.
 
-import { Spectrum } from 'spectrum-ts';
-import { terminal } from 'spectrum-ts/providers/terminal';
+import { sendToHandle, startMessaging } from './messaging/index.ts';
+import { normalizePhone } from './messaging/phone.ts';
 
-const app = await Spectrum({ providers: [terminal.config()] });
-
-for await (const [space, message] of app.messages) {
-  if (message.content.type === 'text') {
-    await space.send('hello from gudtrms');
+await startMessaging(async (handle, text) => {
+  const ping = text.match(/^ping\s+(.+)$/i);
+  if (ping) {
+    const to = normalizePhone(ping[1] ?? '');
+    if (!to) {
+      await sendToHandle(handle, "That doesn't look like a phone number.");
+      return;
+    }
+    await sendToHandle(to, 'gudtrms test: texting first works.');
+    await sendToHandle(handle, `Sent a test message to ${to}.`);
+    return;
   }
-}
+  await sendToHandle(handle, `gudtrms heard you (from ${handle}).`);
+});
