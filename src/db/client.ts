@@ -1,6 +1,11 @@
 // Neon connection. Reads DATABASE_URL from .env (see .env.example).
 
-import { Pool } from '@neondatabase/serverless';
+import { Pool, types } from '@neondatabase/serverless';
+
+// `date` columns (e.g. proposals.move_out_date) come back as 'YYYY-MM-DD' strings, matching
+// IsoDate in src/shared/types.ts. The default turns them into a JS Date at local midnight,
+// which can print as the wrong day.
+types.setTypeParser(types.builtins.DATE!, (value) => value);
 
 let pool: Pool | undefined;
 

@@ -22,6 +22,39 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 - Tested on the terminal provider (Windows). iMessage is typechecked but not run yet, because we don't have Spectrum keys.
 - Files: `src/messaging/index.ts`, `src/messaging/phone.ts`, `src/messaging/phone.test.ts`, `src/messaging/README.md`, `src/privacy/sendTo.ts`, `src/index.ts`, `.env.example`, `AGENTS.md` (section 11 status)
 
+### 2026-10-03 16:30 ET · Shruti
+- **`negotiate()` is real** (replaces the stub, same signature). It loads the case from Neon, the mediator proposes, and both advocates decide, for up to 5 rounds (`ROUND_CAP`). Every proposal, decision, and advocate note is written as it happens so the judge view can poll it. `DEMO_PACING_MS` > 0 waits between moves; leave it at 0 when not demoing.
+- **Checked on Neon:** the demo case gives round 1 rejected ($1,615), round 2 agreed ($1,390, Nov 30), exactly as in section 8. With caps on both sides it stops after 5 rounds, sets `needs_relaxation`, and asks both people.
+- **Pranav, three things for your side:**
+  - On `agreed`, the case status is left alone. You send the agreement and set `awaiting_confirmation`. On `needs_relaxation`, `negotiate()` sets the status itself.
+  - When someone relaxes a constraint, **update their existing constraint row**; don't insert a second one. Advocates apply every cap row they see, so the old, stricter cap would still win.
+  - Rounds keep counting across calls (a call after relaxation starts at round 6), and each call gets its own 5 rounds.
+- If the move-out windows don't overlap, there's no proposal at all. The person whose window ends first is asked to stretch it by a fixed 14 days, never to the other person's date, which would leak it.
+- New `npm run demo:negotiate`: runs `negotiate()` on the seeded demo case and prints what crossed the wire. Run `npm run db:reset` first.
+- Files: `src/engine/index.ts`, `db/negotiate-demo.ts`, `package.json`
+
+### 2026-10-03 16:25 ET · Shruti
+- **Neon is live.** Project `gudtrms` with branches `production` (kept clean for the demo), `shruti`, and `pranav`, all set to never auto-delete. `npm run db:reset` checked against Neon: every table is created and the demo case `4F7K` loads. Pranav: I'll add you to the project; copy the connection string for the `pranav` branch into your own `.env`.
+- **`date` columns now come back as `'YYYY-MM-DD'` strings**, not JS `Date` objects, matching `IsoDate` in `src/shared/types.ts`. A `Date` can print as the wrong day depending on timezone (bad for "moves out by Nov 30").
+- Files: `src/db/client.ts`
+
+### 2026-10-03 16:15 ET · Shruti
+- **Advocates are in** (`src/engine/advocate.ts`). Pure, deterministic. `decide(view, terms)` accepts only if the total paid is within the cap, every dealbreaker is met, the move-out date is in the window, and the deal gives at least the fair share (deposit excluded). It returns the one-line note for `advocate_notes`, e.g. `Total $1,615 is over my $1,600 cap. REJECT`. On a reject, the note lists only what failed.
+- `relaxAsk(view, rejected)` gives the smallest single change that would have made a rejected proposal pass for this person (smallest cap raise first, then window, then dealbreaker), in the `RelaxAsk` shape from the contract. Returns null if that person didn't block anything.
+- An advocate throws if it's handed any valuation or constraint that isn't its own person's.
+- Moved the per-person value math (`valueLookup`, `fairShare`, `received`) into `src/engine/values.ts` so the mediator and advocates share it. No behavior change.
+- Tests: Alex rejects round 1 and accepts round 2, Sam accepts both; dealbreaker, window, relaxation (Alex is asked about $1,615), and the private-data guard.
+- `negotiate()` is still the stub; wiring it to Neon is next.
+- Files: `src/engine/advocate.ts`, `src/engine/advocate.test.ts`, `src/engine/values.ts`, `src/engine/mediator.ts`
+
+### 2026-10-03 16:08 ET · Shruti
+- **Mediator is in** (`src/engine/mediator.ts`). It's pure: no DB, no LLM. `candidates(input)` yields deals best total value first, each with its Knaster buyout, the deposit line, the move-out date, and a `math` object (fair shares, received, excess, surplus) for the judge view's math panel. Its input type has no field for caps or dealbreakers, so it can't see them.
+- Handles all item kinds: stuff, subscriptions (cancelled when nobody wants it), lease (A stays, B stays, or both move out), lease-break fee (only when both move out, goes to whoever minds paying it least), and pets (4 outcomes). Missing valuations count as $0; a missing fee valuation defaults to paying the whole fee.
+- **Tie rule:** options worth the same to both people are collapsed, and "cancelled" / "both move out" win ties. Without this, the $0 Spotify would tie for round 2 ("Alex keeps Spotify") and the demo would land in round 3.
+- Tests reproduce the section 8 table exactly (round 1 $865 + $750 = $1,615, round 2 $640 + $750 = $1,390, Nov 30), plus both-move-out with a fee, no window overlap, and "both end the same amount above fair share."
+- `negotiate()` is still the stub. Advocates and wiring it to Neon come next.
+- Files: `src/engine/mediator.ts`, `src/engine/mediator.test.ts`
+
 ### 2026-10-03 17:05 ET · Shruti
 - **Scaffold is in.** Node + TypeScript via `tsx` (no build step). Neon via `@neondatabase/serverless`, Photon via `spectrum-ts`. Pull, run `npm install`, and start in your own folders.
 - `db/schema.sql` (section 7 as SQL) and `npm run db:reset`, which **wipes** the database and loads the demo scenario. Use your own Neon branch. Checked on in-memory Postgres; not yet run against Neon.
