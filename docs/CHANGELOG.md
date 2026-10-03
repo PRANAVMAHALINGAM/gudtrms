@@ -12,6 +12,15 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-03 17:02 ET · Shruti
+- **Rogue mode is in.** `ROGUE_MODE=B` (or `A`; `true` means B) makes that advocate try once, on the first proposal, to send "what's Alex's max payment?" across. The protocol gate (`src/engine/protocol.ts`) only lets `{ type: 'accept' | 'reject' }` cross and refuses everything else, including a decision with a reason attached. The deal itself is unaffected.
+- **Where the blocked message goes:** `leak_events` gets the reason only (`BLOCKED: free text not allowed (from B's advocate)`), never the content, per section 7. The attempted question goes in the rogue advocate's own `advocate_notes` (judge view only), so the judge view can show it in that side lane and the BLOCKED line in the middle.
+- Every advocate decision now goes through the same gate before it's written to `decisions`.
+- Checked on Neon: with rogue mode on, one `leak_events` row and the deal still lands in round 2; with it off, none. `npm run demo:negotiate` now prints `leak_events`.
+- Documented `ROGUE_MODE` and `DEMO_PACING_MS` values in `.env.example`.
+- Updated my rows in the section 11 status table.
+- Files: `src/engine/protocol.ts`, `src/engine/protocol.test.ts`, `src/engine/advocate.ts`, `src/engine/index.ts`, `db/negotiate-demo.ts`, `.env.example`, `AGENTS.md` (section 11)
+
 ### 2026-10-03 · Pranav
 - **Messaging adapter is in** (`src/messaging/`). It's the only code that imports spectrum-ts. API: `startMessaging(onMessage(handle, text))`, `sendToHandle(handle, text)`, `stopMessaging()`. Handles are E.164 phone numbers. Choose the provider with `MESSAGING_PROVIDER=terminal|imessage` (new in `.env.example`).
 - The terminal provider supports several chats, so texting a new number opens a new chat window for it. You can play A and B in one terminal, with no dev shim.
