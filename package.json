@@ -11,6 +11,8 @@
     "start": "tsx --env-file-if-exists=.env src/index.ts",
     "db:reset": "tsx --env-file-if-exists=.env db/reset.ts",
     "demo:negotiate": "tsx --env-file-if-exists=.env db/negotiate-demo.ts",
+    "judge": "npm --prefix judge run dev",
+    "judge:install": "npm --prefix judge install",
     "test": "tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
     "msg:test": "tsx --env-file-if-exists=.env src/messaging/send-test.ts"

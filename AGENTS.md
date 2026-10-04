@@ -391,7 +391,7 @@ Split: **Pranav = conversation side** (everything a human sees over iMessage). *
 | Neon schema, DB client, demo seed | Shruti | `db/`, `src/db/` | done, checked on Neon |
 | Mediator | Shruti | `src/engine/` | done, tested |
 | Advocates, `negotiate()`, rogue mode | Shruti | `src/engine/` | done, checked on Neon |
-| Judge view | Shruti | `judge/` | not started |
+| Judge view | Shruti | `judge/` | done: mock + live checked (`npm run judge`) |
 | Neon RLS + demo-seed branch, Notability screenshots | Shruti | | branches made (`production` kept clean); RLS + demo seed not started |
 | .Tech domain | Pranav | | not started |
 | Pitch + Devpost + backup video | Both | | not started |

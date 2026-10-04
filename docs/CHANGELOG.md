@@ -12,6 +12,34 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-03 21:42 ET · Shruti
+- **All judge-view text fits its box.** Fixed every overflow an automated check found, stepping through all 14 steps both redacted and declassified: the "What it's worth" cards, the "Is it fair?" and leak log footer cards, the proposal card's DEAL / NO DEAL seal, and the items after a NO DEAL running toward the footer (they now sit three across in compact cards while a proposal shows). The footer is a little taller.
+- **Scroll as a safety net:** every side card, footer card, the agreement's list of terms, and a moving box holding more than six items scroll instead of spilling, so longer live data (names, more items) stays inside. With the demo data nothing needs to scroll. Long words wrap inside cards.
+- Checked at 900x1300, 1280x720, 1600x900, and 2560x1080: the whole stage stays on screen and in proportion.
+- **The line is now duct tape:** gray with a silver sheen, a woven texture, creases, wavy edges, and three crooked extra pieces stuck on at angles. Breakups are messy. The crooked pieces fall off when it tears at the end.
+- **Favicon:** 🤝 (inline SVG, no file).
+- **Follow-up:** Alex's deposit card was spilling out of the moving box, because four items need two rows and the box only fit about one and a half. The box now fits exactly two rows. Up to 4 items get two wide cards per row (names in full); more get three narrower cards per row, and past 6 the box scrolls. Names and tags in a box stay on one line each (full text on hover); compact tape cards wrap to two lines. The deposit's label is shorter ("Deposit" · "$1,500 · on Alex's lease").
+- **Follow-up:** the "Parted on gudtrms." card is smaller, and at the tear the sides ease inward instead of sliding out, so they keep about 50px from the screen edge (they used to almost touch it). A check across every step finds no overflow, no truncated text, and nothing reaching the footer.
+- Files: `judge/index.html`, `judge/src/theme.css`, `judge/src/App.tsx`, `judge/src/components/{Side,Items,TapeZone,Chrome,Overlays}.tsx`
+
+### 2026-10-03 21:23 ET · Shruti
+- **Judge view restyled: lighter, more elegant, evenly spaced.** The dark crimson and hot pink read as shady, so it's now warm linen and paper with white cards and soft shadows, Fraunces (an editorial serif) for headings with Inter for body text, terracotta as the accent, sage for accept / deal, and brick for reject / no deal / blocked. Words and icons still carry every meaning, not just color.
+- **One spacing scale** (8 / 16 / 24 / 32 / 40px), used everywhere: a 40px page margin, a 32px gap between all three columns and between the footer cards, and 16px between cards. Both sides use fixed card heights, so they mirror exactly.
+- Each side is a Pinterest-style set of cards: values and hard limits side by side, then the advocate's notes, then the moving box. Redaction is now document-style charcoal bars inside each card with a small "Private" label. Stamps are double-ruled serif seals. The IOU and keys pin onto the taped boxes at the end.
+- The closing line is now **"Parted on gudtrms."**, styled like the header wordmark (upright "gud", italic terracotta "trms").
+- Same behavior, data, and shortcuts. Fonts swapped: Anton, Permanent Marker, and Bricolage out; Fraunces in.
+- Files: `judge/src/theme.css`, `judge/src/main.tsx`, `judge/src/App.tsx`, `judge/src/components/*`, `judge/package.json`
+
+### 2026-10-03 21:10 ET · Shruti
+- **Judge view is in** (`judge/`). Run it with `npm run judge:install` (once), then `npm run judge` → http://127.0.0.1:5199. Vite + React + Framer Motion, with its own `package.json` inside `judge/`, so none of its dependencies land in the root.
+- **Theme:** two exes splitting up. Masking tape down the middle is the privacy line ("What crosses the line"). Shared items start on the tape and fly into each ex's moving box. The buyout is a handwritten IOU. Dark crimson base with hot pink and red accents, kraft and tape textures. Laid out at 1920x1080 and scaled to fit any screen. Fonts are bundled, so it works offline.
+- **Moments:** Declassify (`X`) rips black redaction bars off both sides. Proposals slam in, then DEAL or NO DEAL stamps land (NO DEAL shakes the screen and snaps the items back). The rogue message hits the tape and gets stamped BLOCKED. The agreement card's signatures fill in as each person replies YES, then the screen tears along the tape: boxes get taped shut, the keys fly to whoever keeps the apartment, the IOU pins to the payee's side, and it ends on "Parted on good terms." Synthesized sound effects (mute with `M`).
+- **Interactive:** replay (`R`), play/pause (`Space`), step (`←` `→`), 1x/2x speed, a timeline scrubber over every step, click any item for both exes' values and why it went where it did, an "Is it fair?" breakdown with animated bars (`F`), a fairness playground in mock mode that re-runs the real mediator live, and `?` for shortcuts.
+- **Data:** Mock mode runs the real mediator and advocates from `src/engine` in the browser on the section 8 demo, so it can't drift from the engine. Live mode polls `GET /api/snapshot` every second. It reads Neon inside one `READ ONLY` transaction per poll, binds to 127.0.0.1 only, never logs row contents, and can use an optional read-only role via `JUDGE_DATABASE_URL`.
+- **Checked:** mock plays through all 14 steps with the section 8 numbers (round 1 $1,615 NO DEAL, round 2 $1,390 DEAL, +$235 each, $470 surplus). Live followed a real paced rogue-mode `negotiate()` on my Neon branch end to end. The playground recomputes correctly ($400 TV gives $1,652.50).
+- **Pranav:** signatures and the tear play when `agreements.a_confirmed` / `b_confirmed` turn true. Until the `agreements` row exists, the card shows the accepted proposal with "waiting for YES". If `agreements.text` is set, the card shows your text instead of generating its own.
+- Files: `judge/*` (new), `package.json` (`judge`, `judge:install` scripts), `.env.example` (`JUDGE_DATABASE_URL`), `AGENTS.md` (section 11 status)
+
 ### 2026-10-03 18:45 ET · Shruti
 - **Re-checked everything on my side:** typecheck (no unused code), all 20 tests, and the demo on Neon (normal and rogue) all pass and match section 8.
 - **Fixed: `negotiate()` could run twice on one case.** The messaging adapter handles A's and B's messages in parallel, so if both finish intake at the same moment, both could call it and write duplicate rounds. Now it claims the case first (`intake` / `needs_relaxation` → `negotiating`, atomically). A second call throws "already being negotiated by another call", which is safe to ignore. If a run fails mid-way, the case goes back to its previous status and any half-written proposal is marked `superseded`. Checked on Neon with two simultaneous calls and with a forced failure.
