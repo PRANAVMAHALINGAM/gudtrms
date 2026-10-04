@@ -2,7 +2,7 @@
 
 The screen we show judges while two teammates act out a breakup on their phones. Each ex's side shows what their advocate privately knows; the masking tape down the middle shows **only what crosses the line**. See AGENTS.md section 8.
 
-**localhost only. Never deploy it.** It's the one place allowed to read private data, and only because the demo uses fake data.
+**Hosted as an open link at https://gudtrms.tech/demo for the hackathon** (team decision, see AGENTS.md section 8). It's the one place allowed to read private data, so run it on fake data or people who know it's a demo.
 
 ## Run it
 
@@ -10,6 +10,8 @@ The screen we show judges while two teammates act out a breakup on their phones.
 npm run judge:install   # once (its own deps live in judge/, separate from the root)
 npm run judge           # http://127.0.0.1:5199
 ```
+
+Or in Docker: `docker compose --profile judge up -d` serves the built app at http://localhost:5199/demo/ (`vite build` with `JUDGE_BASE=/demo/`, then `vite preview`). When hosted, Caddy puts it at `https://<DOMAIN>/demo`. See `docs/DOCKER.md`.
 
 - **Mock** (default): the section 8 demo, negotiated in the browser by the real mediator and advocates from `src/engine`. No database needed.
 - **Live**: polls `GET /api/snapshot` every second, which reads Neon using `DATABASE_URL` from the repo's `.env` (or `JUDGE_DATABASE_URL` for a read-only role). Every poll is one `READ ONLY` transaction. Shows the case with the most recent activity; add `?code=4F7K` to pin one.

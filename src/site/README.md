@@ -21,4 +21,6 @@ On the Free/Pro shared pool, gudtrms can only text people who are (1) Photon pro
 
 ## Hosting
 
-Any Node 22+ host that runs a long-lived process (Render, Railway, Fly). Set `SPECTRUM_PROJECT_ID`, `SPECTRUM_PROJECT_SECRET`, `HOST=0.0.0.0`, `TRUST_PROXY=1`, and let the host set `PORT`. Start command: `npm run site`.
+Use Docker: `docker compose --profile https up -d --build` runs the site behind Caddy (HTTPS on your `DOMAIN`) alongside the bot. Step-by-step AWS guide: [`docs/DOCKER.md`](../../docs/DOCKER.md).
+
+Without Docker, any Node 22+ host that runs a long-lived process works: set the two Spectrum keys, `HOST=0.0.0.0`, `TRUST_PROXY=1` (behind a proxy), let the host set `PORT`, and start with `npm run site`.

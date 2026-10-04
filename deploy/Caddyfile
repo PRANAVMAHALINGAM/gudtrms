@@ -1,0 +1,12 @@
+# HTTPS in front of gudtrms when hosting (compose.yaml, `--profile https`). Caddy gets and renews the
+# certificate itself once DOMAIN's DNS points at this server.
+#   https://DOMAIN        landing page (site)
+#   https://DOMAIN/demo   judge view (judge)
+
+{$DOMAIN} {
+	import routes.caddy
+}
+
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}

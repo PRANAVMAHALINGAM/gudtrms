@@ -51,6 +51,7 @@
 | Agents | **Multi-agent, no agent framework.** Each person gets two LLM agents of their own (a chat agent and an advocate agent), each in its own LLM context built only from that person's data. The mediator stays deterministic code. All of it is plain modules in our backend calling `src/llm/` | Real agents doing the talking and judging, while the parts that must be fair and provable (proposals, hard limits, the wire) stay code. See section 6 |
 | Payments | **None** | Not core |
 | LLM | **Claude** via the Anthropic SDK (default `claude-sonnet-5-5`, low effort), behind a small provider interface in `src/llm/` | Grok or Gemini can be added later as one file in `src/llm/` plus `LLM_PROVIDER` in `.env`; nothing else changes |
+| Running / hosting | **Docker compose** (`compose.yaml`): one image for the bot, landing page, judge view and DB setup; Caddy for HTTPS on a custom domain. Hosted on one AWS Lightsail server | One command to run everything the same way on any machine. Guide: `docs/DOCKER.md` |
 
 **Rejected:** WhatsApp, Telegram as the main channel, and SMS (see "Why iMessage" below), Fetch.ai (whole workflow must live in ASI:One, too much overhead), Relay (users must install an iOS app), OpenClaw (not needed, security baggage), SpacetimeDB (new paradigm, real-time not core).
 
@@ -84,7 +85,7 @@ We want gudtrms itself to invite Person B, because people splitting up often are
 - The output is a **written agreement** both people confirm.
 
 ### Privacy rules (non-negotiable)
-1. A person's private data is only readable by **their own** chat agent, **their own** advocate, and the mediator code. Every LLM call is built from one person's rows only; no prompt ever contains both people's private data. The mediator only gets what it needs to build a deal (valuations, move-out windows, deposit contributions). **Payment caps and dealbreakers stay with the advocate only.** **Only exception:** the localhost-only judge view (section 8), a demo tool that runs on fake data and is never deployed.
+1. A person's private data is only readable by **their own** chat agent, **their own** advocate, and the mediator code. Every LLM call is built from one person's rows only; no prompt ever contains both people's private data. The mediator only gets what it needs to build a deal (valuations, move-out windows, deposit contributions). **Payment caps and dealbreakers stay with the advocate only.** **Only exception:** the judge view (section 8), a demo tool meant for fake data. For the hackathon it's hosted as an open link at `gudtrms.tech/demo` (team decision, 2026-10-04), so anyone with the link can see the live case.
 2. The only things that cross from one side to the other: the shared item list (names only), each person's deposit contribution (a fact both confirm, not a preference), the mediator's proposals, whether each proposal was accepted or rejected (no reasons), and the final agreement.
 3. **Only the mediator generates proposals.** Advocates cannot propose, ask the other side questions, or send free text across.
 4. **Round cap** on negotiation to prevent probing (proposed: 5 rounds).
@@ -410,7 +411,7 @@ A web page on the demo laptop that shows judges the advocates negotiating. The e
 
 **Rules**
 - Read-only. Polls Neon every ~1s.
-- **localhost only.** Never deploy it publicly. It reads private data, which is fine only because the demo uses fake data.
+- **Hosted as an open link at `https://gudtrms.tech/demo`** for the hackathon (team decision, 2026-10-04; was localhost-only). It reads private data, so run it on fake data or people who know it's a demo. Mock / live toggle stays. `docker compose stop judge` takes it offline. `npm run judge` still runs it locally.
 
 ---
 
@@ -455,10 +456,11 @@ Split: **Pranav = conversation side** (everything a human sees over iMessage). *
 | Mediator | Shruti | `src/engine/mediator.ts` | done, tested: every item kind, tie rule (cancelled / both move out win ties), reproduces the section 8 rounds exactly |
 | Advocate rules, `negotiate()`, rogue mode, protocol gate | Shruti | `src/engine/` | done, checked on Neon: hard checks + notes, relaxation asks, 5-round cap, window-stretch ask, concurrency guard, `ROGUE_MODE`, `DEMO_PACING_MS`, `npm run demo:negotiate` |
 | Advocate agents (LLM) on top of the rules | Shruti | `src/engine/advocateAgent.ts` | done: wired into `negotiate()`, rules as hard veto + fallback, soft preferences, LLM-written rogue question. Checked on Neon (`demo:agreement` with `ROGUE_MODE=B`: round 1 REJECT, round 2 agreed) and in the judge view; `npm run advocate:check` passes |
-| Judge view | Shruti | `judge/` | done: mock (runs the real engine in the browser) + live (polls Neon read-only, 127.0.0.1 only), checked at four screen sizes (`npm run judge`). An agreement someone replied NO to shows as declined, then the next rounds play on |
+| Judge view | Shruti | `judge/` | done: mock (runs the real engine in the browser) + live (polls Neon read-only), checked at four screen sizes (`npm run judge`). An agreement someone replied NO to shows as declined, then the next rounds play on. Hosted at `/demo` via Docker (built with `vite build`, served by `vite preview`) |
 | Neon RLS + demo-seed branch, Notability screenshots | Shruti | | branches made; RLS + demo seed not started |
 | 50/50 pet option | Shruti: `Outcome` type, mediator, values, advocate dealbreaker, demo seed, judge view · Pranav: intake question, agreement line | `src/shared/`, `src/engine/`, `judge/`, `src/intake/`, `src/conversation/` | spec only, not started. Build **after** the ~3 AM full run, since it changes the shared allocation shape |
 | Landing page + sign-up (creates the Photon user, then **Start texting** opens Messages with `start` typed) | Pranav | `site/`, `src/site/` | done: `npm run site`. Checked in the browser at desktop and phone widths; the Photon create call checked against the live API (re-posting an existing user returns the same user). Not yet run with a brand-new number on a real iPhone |
+| Docker compose + hosting guide | Pranav | `Dockerfile`, `compose.yaml`, `deploy/`, `docs/DOCKER.md` | done: image builds; checked in containers: 59/59 tests, `migrate` on Neon, Photon API, landing page, judge view at `/demo` (live, from Neon), the bot connecting to iMessage, and the full hosting setup (Caddy HTTPS, `/` and `/demo`) rehearsed with `DOMAIN=localhost`. Not yet on the real server / `gudtrms.tech` |
 | .Tech domain | Pranav | | not started |
 | Pitch + Devpost + backup video | Both | | not started |
 

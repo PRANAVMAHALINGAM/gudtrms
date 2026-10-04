@@ -1,0 +1,14 @@
+# Secrets never go into the image: compose passes .env in at runtime.
+.env
+.env.*
+!.env.example
+
+node_modules/
+judge/node_modules/
+.git/
+.claude/
+.vscode/
+.idea/
+*.log
+coverage/
+dist/

@@ -17,6 +17,16 @@ npm run demo:negotiate # runs negotiate() on the demo case; db:reset first for a
 npm run dev            # Photon hello world (terminal only until Spectrum keys are set)
 ```
 
+## Or with Docker
+
+Needs Docker and the same `.env`. One command starts the database setup, the bot and the landing page:
+
+```bash
+docker compose up -d --build
+```
+
+Add `--profile judge` for the judge view: then http://localhost:8080 is the landing page and http://localhost:8080/demo the judge view, same as the hosted site. Or use `--profile https` to host everything with HTTPS on a custom domain: the landing page at `/` and the judge view at `/demo`. Everything else, including hosting on AWS, is in [`docs/DOCKER.md`](docs/DOCKER.md).
+
 ## Layout
 
 | Path | Owner | What |

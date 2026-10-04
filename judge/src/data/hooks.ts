@@ -14,7 +14,8 @@ export function useLiveSnapshot(mode: Mode, code: string | null) {
     let lastBody = '';
     const tick = async () => {
       try {
-        const res = await fetch(`/api/snapshot${code ? `?code=${encodeURIComponent(code)}` : ''}`, { cache: 'no-store' });
+        // BASE_URL is '/' locally and '/demo/' when hosted (vite.config.ts).
+        const res = await fetch(`${import.meta.env.BASE_URL}api/snapshot${code ? `?code=${encodeURIComponent(code)}` : ''}`, { cache: 'no-store' });
         const text = await res.text();
         const body = JSON.parse(text);
         if (stop) return;

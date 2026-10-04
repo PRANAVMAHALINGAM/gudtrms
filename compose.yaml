@@ -1,0 +1,143 @@
+# gudtrms in Docker. Full guide: docs/DOCKER.md.
+#
+#   docker compose up -d --build                      bot + landing page (http://localhost:5200)
+#   docker compose --profile judge up -d              + judge view; then http://localhost:8080 is the landing
+#                                                     page and http://localhost:8080/demo the judge view
+#   docker compose --profile https up -d --build      hosting: everything + Caddy, so https://DOMAIN is the
+#                                                     landing page and https://DOMAIN/demo the judge view
+#   docker compose --profile tunnel up -d             + a temporary public link to the landing page (phones)
+#   docker compose run --rm -e MESSAGING_PROVIDER=terminal bot    play both people in the terminal
+#   docker compose run --rm bot npm run <script>      any npm script, e.g. db:reset, sim:intake
+#
+# Secrets come from .env at runtime (Photon keys, DATABASE_URL, ANTHROPIC_API_KEY); none are in the image.
+# Neon is hosted, so there's no database container: `migrate` sets up or upgrades it before the bot starts.
+
+name: gudtrms
+
+# Docker keeps container logs forever by default; cap them so a small server's disk can't fill up.
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-app: &app
+  build: .
+  image: gudtrms:latest
+  env_file:
+    - path: .env
+      required: false
+  init: true
+  <<: *logging
+
+services:
+  # Creates the tables on a new Neon database, or adds missing ones. Never drops data. Exits when done.
+  migrate:
+    <<: *app
+    command: ["npm", "run", "db:migrate"]
+    restart: "no"
+
+  # Photon (iMessage) + router + agents. Run exactly one bot per Photon project: two would both answer.
+  bot:
+    <<: *app
+    command: ["npm", "start"]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - tuichat-cache:/home/node/.cache # terminal provider's chat UI, downloaded on first use
+
+  # Landing page + sign-up (creates the Photon user). Published on this machine only;
+  # Caddy (https profile) is what the internet talks to.
+  site:
+    <<: *app
+    command: ["npm", "run", "site"]
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: "5200"
+      TRUST_PROXY: "1" # only Caddy, the tunnel and this machine can reach it, so forwarded IPs are trustworthy
+    ports:
+      - "127.0.0.1:${SITE_PORT:-5200}:5200"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5200/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # Judge view, built into the image and served under /demo/. Reads live data from Neon (press L to
+  # switch mock / live). The team chose to host it as an open link at https://DOMAIN/demo for the
+  # hackathon (AGENTS.md section 8), so the https profile starts it too.
+  judge:
+    <<: *app
+    command: ["npm", "--prefix", "judge", "run", "preview"]
+    profiles: ["judge", "https"]
+    restart: unless-stopped
+    environment:
+      JUDGE_HOST: 0.0.0.0
+      JUDGE_BASE: /demo/
+    ports:
+      - "127.0.0.1:${JUDGE_PORT:-5199}:5199"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5199/demo/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # HTTPS when hosting: DOMAIN -> landing page, DOMAIN/demo -> judge view (deploy/Caddyfile).
+  # Set DOMAIN in .env and point its DNS at this server first.
+  caddy:
+    image: caddy:2
+    profiles: ["https"]
+    restart: unless-stopped
+    <<: *logging
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy:/etc/caddy:ro # Caddyfile + the routes it shares with Caddyfile.local
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - site
+      - judge
+
+  # Local mirror of the hosted layout on one address, plain HTTP: http://localhost:8080 is the landing
+  # page and http://localhost:8080/demo the judge view, routed exactly like https://DOMAIN.
+  web:
+    image: caddy:2
+    profiles: ["judge"]
+    restart: unless-stopped
+    <<: *logging
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.local", "--adapter", "caddyfile"]
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:8080"
+    volumes:
+      - ./deploy:/etc/caddy:ro
+    depends_on:
+      - site
+      - judge
+
+  # A temporary public https://<random>.trycloudflare.com link to the landing page, for trying it on a
+  # phone without hosting. No account needed; the link changes every time this starts. Find it with
+  # `docker compose logs tunnel`.
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    command: ["tunnel", "--no-autoupdate", "--url", "http://site:5200"]
+    restart: unless-stopped
+    <<: *logging
+    depends_on:
+      - site
+
+volumes:
+  tuichat-cache:
+  caddy-data:
+  caddy-config:

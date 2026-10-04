@@ -61,6 +61,9 @@ function rateLimited(ip: string): boolean {
 }
 
 function clientIp(req: IncomingMessage): string {
+  // Cloudflare tunnel: Cloudflare sets this itself, while X-Forwarded-For keeps whatever the client sent.
+  const cloudflare = req.headers['cf-connecting-ip'];
+  if (TRUST_PROXY && typeof cloudflare === 'string') return cloudflare;
   const forwarded = req.headers['x-forwarded-for'];
   if (TRUST_PROXY && typeof forwarded === 'string') return forwarded.split(',')[0]!.trim();
   return req.socket.remoteAddress ?? 'unknown';

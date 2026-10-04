@@ -1,0 +1,13 @@
+# Routing shared by the hosted site (Caddyfile) and the local mirror (Caddyfile.local), so both behave
+# the same: / is the landing page, /demo the judge view (built for the /demo/ base).
+
+encode zstd gzip
+
+redir /demo /demo/ permanent
+handle /demo/* {
+	reverse_proxy judge:5199
+}
+
+handle {
+	reverse_proxy site:5200
+}

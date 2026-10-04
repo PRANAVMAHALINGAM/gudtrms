@@ -12,6 +12,42 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-04 · Pranav (Docker: one local address, like the hosted site)
+- Locally, the landing page and the judge view were on two ports (5200 and 5199). Port 5199 only serves the judge view and redirects to `/demo/`, so it looked like everything was "defaulting to demo". New `web` service (`--profile judge`): **http://localhost:8080** is the landing page and **http://localhost:8080/demo** the judge view, routed exactly like `gudtrms.tech` and `gudtrms.tech/demo`.
+- The routes live once in `deploy/routes.caddy`, imported by the hosted `Caddyfile` (HTTPS) and the new `Caddyfile.local` (plain HTTP on 8080), so local and hosted can't drift apart. The hosted Caddy now mounts the whole `deploy/` folder. Checked: `caddy validate` passes with `DOMAIN=gudtrms.tech`; on 8080, `/`, `/demo` (redirects to `/demo/`), `/demo/api/snapshot` and `/favicon.svg` all work.
+- `.claude/launch.json` (local only, not committed): a "gudtrms (docker)" entry opens the app's preview pane on http://localhost:8080 instead of starting `npm run site` / `npm run judge`, which would clash with the containers' ports.
+- Files: `compose.yaml`, `deploy/routes.caddy` (new), `deploy/Caddyfile`, `deploy/Caddyfile.local` (new), `docs/DOCKER.md`, `README.md`, `.env.example`
+
+### 2026-10-04 · Pranav (hosting: judge view at /demo, DB cleared, Docker audit)
+- **Decision (changes a DECIDED rule):** the judge view is hosted as an **open link at `https://gudtrms.tech/demo`** for the hackathon, with the mock / live toggle kept. Before, it was localhost only. Why: the team wants to show it from any device. Trade-off: anyone with the link sees the live case, both people's private answers included, so use it with fake data or people who know it's a demo. `docker compose stop judge` takes it down. AGENTS.md privacy rule 1 and the section 8 rules are updated.
+- **How:** `judge/vite.config.ts` takes a base path (`JUDGE_BASE`, default `/`). The snapshot API sits under it (`/demo/api/snapshot`) and also runs in `vite preview`. It accepts `DOMAIN` as a host. `hooks.ts` fetches `${BASE_URL}api/snapshot`. The image builds the judge view once (`vite build`, base `/demo/`), and the `judge` service serves it with `vite preview` instead of the dev server: the dev server would serve repo files to the internet (checked: paths like `/demo/@fs/...` only return the app page). Caddy: `/demo` goes to the judge view, everything else to the landing page. The `https` profile now starts the judge view too. `npm run judge` locally is unchanged.
+- **"`.env` not found" on every container start is gone.** The npm scripts pass `--env-file-if-exists=.env`, and the real `.env` is kept out of the image on purpose (compose passes its values in as environment variables). The image now has an empty placeholder `.env`.
+- **Docker audit:** container logs capped at 3 × 10 MB each (Docker keeps them forever by default, which fills a small server's disk), a health check on the judge view, and Lightsail guidance raised to 2 GB. `docs/DOCKER.md` says why the bot can't go on Vercel: it's a long-running process with a live Photon connection.
+- **Took over another session's unfinished judge work:** it had added a public demo mode that hid the live / mock toggle. That's dropped (we want the toggle), along with its import of a `publicDemo.ts` that didn't exist, which broke the judge view build. Also removed its `db:wipe` script, which pointed at a `--empty` flag `db/reset.ts` doesn't have. Kept its `build` / `preview` scripts in `judge/package.json`.
+- **Cleared my Neon branch (`ep-autumn-moon`)** with `db:reset`: 2 cases, 4 participants and 92 chat messages removed. Only the demo case 4F7K (fake numbers) is left.
+- **Checked:** the full hosting setup rehearsed with `DOMAIN=localhost`: `/` is the landing page, `/demo` redirects to `/demo/`, `/demo/` loads with its assets, and `/demo/api/snapshot` returns live data. Sign-up validation works through Caddy, and HTTP redirects to HTTPS. In the browser, the judge view's Live toggle polls Neon with no console errors. Typecheck clean (root and judge). Not yet done on the real server or domain.
+- Files: `Dockerfile`, `compose.yaml`, `deploy/Caddyfile`, `judge/vite.config.ts`, `judge/src/data/hooks.ts`, `judge/package.json`, `judge/README.md`, `docs/DOCKER.md`, `README.md`, `.env.example`, `AGENTS.md` (sections 4, 8, 11)
+
+### 2026-10-04 · Pranav (Docker: phone access through a tunnel)
+- New opt-in `tunnel` service (`docker compose --profile tunnel up -d`): a Cloudflare quick tunnel gives the landing page a temporary public `https://<random>.trycloudflare.com` link, so it opens on a phone over Wi-Fi or cellular without hosting. The link is in `docker compose logs tunnel` and changes on every restart. It only points at `site`, never the judge view (checked: the judge's `/api/snapshot` is a 404 through it).
+- The sign-up rate limit now keys on `CF-Connecting-IP` when it's there (with `TRUST_PROXY=1`). Cloudflare sets that header itself, while `X-Forwarded-For` keeps whatever the client sent, so the first entry could be faked.
+- Switched my `.env` to `MESSAGING_PROVIDER=imessage` and moved my running bot and judge view from plain `npm` into Docker. **My Docker bot is now the one answering our Photon line. Don't run another one with the same keys.**
+- Files: `compose.yaml`, `src/site/server.ts`, `docs/DOCKER.md`
+
+### 2026-10-04 · Pranav (Docker compose + hosting guide)
+- **Whole codebase runs in Docker.** One image (`Dockerfile`: Node 22, root and judge deps, runs as the non-root `node` user, no secrets inside) and `compose.yaml` with:
+  - `migrate`: runs first on every `up`, then exits. Sets up Neon (see below).
+  - `bot`: `npm start` (Photon + router + agents). Waits for `migrate`. Restarts on its own.
+  - `site`: landing page on 127.0.0.1:5200, with a health check.
+  - `judge` (`--profile judge`): opt-in, published on 127.0.0.1:5199 only, never through Caddy.
+  - `caddy` (`--profile https`): HTTPS for the landing page on `DOMAIN`, config in `deploy/Caddyfile`. `www.` redirects to the bare domain.
+  - `.env` is read at runtime. `SITE_PORT` / `JUDGE_PORT` change the host ports if they're taken. Terminal mode: `docker compose run --rm -e MESSAGING_PROVIDER=terminal bot`.
+- **`npm run db:migrate` now also sets up an empty database.** If there's no `cases` table, it runs `schema.sql` first (schema.sql drops tables, so only when there's nothing to drop), then adds the rest as before. An existing database is still only added to, never changed. Why: so `migrate` can run safely before every bot start, including on a brand-new Neon branch.
+- `judge/vite.config.ts` (Shruti's): binds to `JUDGE_HOST` if set (Docker sets `0.0.0.0` inside the container), else 127.0.0.1 as before. Compose still publishes it on 127.0.0.1 only.
+- **Hosting guide** (AWS Lightsail + custom domain + Caddy) in `docs/DOCKER.md`. It replaces the plain-Node steps I'd given in chat.
+- **Checked in containers:** 59/59 tests; `migrate` on my Neon branch; the Photon API (read-only list); the landing page (health check, sign-up validation, favicon); the judge view reading live data from Neon; Caddy serving HTTPS on localhost, redirecting HTTP, and not exposing the judge's `/api/snapshot`. **Not run:** the `bot` container against iMessage (only one bot may run per Photon project; stop any other `npm start` first), and `migrate` on an empty database.
+- Files: `Dockerfile`, `.dockerignore`, `compose.yaml`, `deploy/Caddyfile`, `docs/DOCKER.md` (new), `db/migrate.ts`, `judge/vite.config.ts`, `judge/README.md`, `README.md`, `src/site/README.md`, `.env.example`, `AGENTS.md` (sections 3, 11)
+
 ### 2026-10-04 · Pranav (landing page: messier tape)
 - The tape between the two lanes looked like a pipe: one narrow strip with a few edge points and one sheen. It now matches the judge view's duct tape. It's wider (124px), its edges are jittered from the judge view's own `jitter()`, it has two sheens side by side (like two halves), and three crooked torn-off pieces are slapped across it at the judge view's angles (-21°, 15°, -8°). On phones the strip runs across behind the proposal card, with the pieces crossing it.
 - Polygons are precomputed into CSS (the page's CSP blocks inline styles). Checked at 1440px and 375px, no sideways scroll.

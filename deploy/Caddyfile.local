@@ -1,0 +1,7 @@
+# Local mirror of the hosted layout, plain HTTP (compose.yaml `web` service, `--profile judge`):
+#   http://localhost:8080        landing page
+#   http://localhost:8080/demo   judge view
+
+:8080 {
+	import routes.caddy
+}
