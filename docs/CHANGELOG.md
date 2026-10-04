@@ -12,6 +12,19 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-04 · Shruti (docs: Photon invite limitation)
+- Wrote down a known limitation: ideally gudtrms texts B the invite itself (even if B has blocked A), but on our Photon Free/Pro shared line it can only text people who've signed up and texted the line once. Otherwise A is told to pass on the case code, which fails if B blocked A. Photon's Business plan (dedicated line) removes the limit. **Decision for the demo:** assume B is already registered (every demo phone signs up and texts in first), and say so in the pitch.
+- Considered and dropped: a `/join/<code>` sign-up link for A to forward. It doesn't help when B has blocked A, which is the case this product is for.
+- Files: `AGENTS.md` (sections 3 and 5), `README.md`
+
+### 2026-10-04 · Shruti (hosted on AWS Lightsail)
+- **The stack is live on a Lightsail server** (Ohio, Ubuntu 24.04, 2 GB, static IP `3.138.166.112`), set up per `docs/DOCKER.md`: `docker compose --profile https up -d`. Bot, landing page, judge view and Caddy are all running. Added 2 GB swap for builds. SSH: `ssh -i ~/.ssh/gudtrms_lightsail ubuntu@3.138.166.112` (key on Shruti's Mac), code in `~/gudtrms`.
+- **The hosted bot is now the one answering our Photon line.** Pranav's Docker bot is stopped. Don't start another bot with the same keys.
+- Server `.env` = Shruti's (her Neon branch, `ep-royal-fog`) + the Photon keys + `MESSAGING_PROVIDER=imessage` + `DOMAIN=gudtrms.tech`. `migrate` added `chat_messages`, `chat_state`, `llm_usage` to that branch.
+- **DNS (get.tech):** A records for `@` and `www` → `3.138.166.112`. `www` is published; get.tech's nameservers weren't publishing the `@` record yet. **Temporary, server only (not committed):** `deploy/Caddyfile` on the server serves the site on both `gudtrms.tech` and `www.gudtrms.tech` with no www redirect, so **https://www.gudtrms.tech** and **https://www.gudtrms.tech/demo** work now (Let's Encrypt cert). Once `gudtrms.tech` resolves, Caddy gets its cert by itself; then on the server run `git checkout deploy/Caddyfile && docker compose restart caddy` to bring back the www → bare-domain redirect.
+- Checked from outside: `/` 200, `/demo` → `/demo/` 200, `/demo/api/snapshot` 200, HTTP → HTTPS redirect. Some networks (e.g. the venue Wi-Fi) cached "no such domain" from before the records existed and may not resolve `www` for up to ~2 hours; cellular works.
+- Files: `docs/CHANGELOG.md`, `AGENTS.md` (section 11)
+
 ### 2026-10-04 · Pranav (Docker: one local address, like the hosted site)
 - Locally, the landing page and the judge view were on two ports (5200 and 5199). Port 5199 only serves the judge view and redirects to `/demo/`, so it looked like everything was "defaulting to demo". New `web` service (`--profile judge`): **http://localhost:8080** is the landing page and **http://localhost:8080/demo** the judge view, routed exactly like `gudtrms.tech` and `gudtrms.tech/demo`.
 - The routes live once in `deploy/routes.caddy`, imported by the hosted `Caddyfile` (HTTPS) and the new `Caddyfile.local` (plain HTTP on 8080), so local and hosted can't drift apart. The hosted Caddy now mounts the whole `deploy/` folder. Checked: `caddy validate` passes with `DOMAIN=gudtrms.tech`; on 8080, `/`, `/demo` (redirects to `/demo/`), `/demo/api/snapshot` and `/favicon.svg` all work.

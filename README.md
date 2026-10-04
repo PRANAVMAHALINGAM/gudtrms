@@ -4,6 +4,10 @@
 
 The spec, the work split, and the rules for contributing are in [`AGENTS.md`](AGENTS.md). Log every change in [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
 
+## Known limitation
+
+Ideally gudtrms texts your ex the invite itself, so you never have to contact them, even if they've blocked you. Our Photon plan (Free/Pro, shared line) only lets gudtrms text people who have already signed up and texted the line once, so for now **both people need to be registered**. If they aren't, the person who started the case is asked to pass on the case code. Photon's Business plan (a dedicated line) removes this. For the demo, every phone signs up first. Details: [`AGENTS.md`](AGENTS.md) section 3.
+
 ## Setup
 
 Needs Node 22.9 or newer.

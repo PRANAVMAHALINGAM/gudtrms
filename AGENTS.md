@@ -67,6 +67,11 @@ We want gudtrms itself to invite Person B, because people splitting up often are
 
 **Trade-off we're accepting:** Android users can't be invited or take part. Fine for the demo if every demo phone is an iPhone. Photon's marketing mentions SMS/RCS, so ask the booth whether an iMessage line falls back to SMS for Android numbers (see open questions). WhatsApp is the backup plan if we need Android.
 
+**Known limitation: on our Photon plan, gudtrms can't text someone first.** The whole reason we picked iMessage is that gudtrms itself invites B, so A never has to contact them. That matters most when they're not on speaking terms (B may have blocked A; B blocked A's number, not ours).
+- **How it should work:** A gives B's number, and gudtrms texts B the one fixed invite directly. Photon's **Business plan** (a dedicated line) allows this.
+- **What we have (Free/Pro, shared pool):** Photon only lets our line text numbers that are users of our Photon project **and** have already texted their line once. Anyone else gets `Target not allowed for this project`, and A is told to pass on the case code instead. That doesn't work if B has blocked A.
+- **For the demo we assume B is already registered:** every demo phone signs up on the landing page and texts the line once beforehand, so the invite goes straight through. In the pitch, say so: on a dedicated line, gudtrms texts your ex directly, even if they've blocked you.
+
 ### iMessage notes
 - **Credentials:** Photon project ID + secret (cloud mode), in `.env`, never committed. Local mode reads the macOS Messages database directly with no credentials, which is an option for dev on a Mac.
 - **Lines:** Free/Pro plans route each user through a number from a **shared pool**, so A and B may text different numbers. Fine for us, since everything is 1:1 DMs and the router keys on the user's handle, not our number. A dedicated number needs the Business plan.
@@ -100,7 +105,7 @@ We want gudtrms itself to invite Person B, because people splitting up often are
 All conversation happens in **1:1 DMs** with the gudtrms number. No group chat between the two people.
 
 1. **Start:** Person A texts `start`. gudtrms replies with a short intro and asks for their ex's first name and phone number. A also gets a **case code** as a backup.
-2. **Invite:** gudtrms texts B one fixed invite: `{name} started a gudtrms case to sort out your shared stuff privately. Reply JOIN to take part or STOP to never hear from us again.` A doesn't have to talk to B at all. Invite rules:
+2. **Invite:** gudtrms texts B one fixed invite: `{name} started a gudtrms case to sort out your shared stuff privately. Reply JOIN to take part or STOP to never hear from us again.` A doesn't have to talk to B at all. (On our current Photon plan this only reaches B if they've already signed up; see the known limitation in section 3.) Invite rules:
    - **One invite per case, no reminders, no follow-ups.** If B never replies, gudtrms never messages B again.
    - The invite text is fixed. A can't add free text, so it can't be used to send messages to B.
    - B replies `STOP` → that number goes on a permanent opt-out list and **no case from anyone** can invite it again. A is told only "they didn't join."
@@ -460,8 +465,8 @@ Split: **Pranav = conversation side** (everything a human sees over iMessage). *
 | Neon RLS + demo-seed branch, Notability screenshots | Shruti | | branches made; RLS + demo seed not started |
 | 50/50 pet option | Shruti: `Outcome` type, mediator, values, advocate dealbreaker, demo seed, judge view · Pranav: intake question, agreement line | `src/shared/`, `src/engine/`, `judge/`, `src/intake/`, `src/conversation/` | spec only, not started. Build **after** the ~3 AM full run, since it changes the shared allocation shape |
 | Landing page + sign-up (creates the Photon user, then **Start texting** opens Messages with `start` typed) | Pranav | `site/`, `src/site/` | done: `npm run site`. Checked in the browser at desktop and phone widths; the Photon create call checked against the live API (re-posting an existing user returns the same user). Not yet run with a brand-new number on a real iPhone |
-| Docker compose + hosting guide | Pranav | `Dockerfile`, `compose.yaml`, `deploy/`, `docs/DOCKER.md` | done: image builds; checked in containers: 59/59 tests, `migrate` on Neon, Photon API, landing page, judge view at `/demo` (live, from Neon), the bot connecting to iMessage, and the full hosting setup (Caddy HTTPS, `/` and `/demo`) rehearsed with `DOMAIN=localhost`. Not yet on the real server / `gudtrms.tech` |
-| .Tech domain | Pranav | | not started |
+| Docker compose + hosting guide | Pranav | `Dockerfile`, `compose.yaml`, `deploy/`, `docs/DOCKER.md` | done: image builds; checked in containers: 59/59 tests, `migrate` on Neon, Photon API, landing page, judge view at `/demo` (live, from Neon), the bot connecting to iMessage, and the full hosting setup (Caddy HTTPS, `/` and `/demo`) rehearsed with `DOMAIN=localhost`. **Live on AWS Lightsail** (`3.138.166.112`, Shruti): https://www.gudtrms.tech and `/demo`, bot answering on iMessage. Bare `gudtrms.tech` waiting on get.tech to publish its A record (see changelog) |
+| .Tech domain | Pranav | | done: A records for `@` and `www` → the Lightsail IP; `www` live, `@` not yet published by get.tech |
 | Pitch + Devpost + backup video | Both | | not started |
 
 **Contract between the halves** (`src/shared/contract.ts`): the Neon tables in section 7, plus
