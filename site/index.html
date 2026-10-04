@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>gudtrms · good terms after a breakup</title>
+    <meta name="description" content="Two exes, two agents, zero awkward conversations. You and your ex each get a private AI advocate over iMessage that splits the lease, the deposit, the couch and the dog fairly." />
+    <meta name="theme-color" content="#f4eee5" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..600&family=Inter:wght@400..700&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <svg class="sprite" width="0" height="0" aria-hidden="true">
+      <defs>
+        <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 018 0v3" /></symbol>
+        <symbol id="i-scale" viewBox="0 0 24 24"><path d="M12 3v18M5 21h14M6 7h12" /><path d="M6 7l-3 6a3 3 0 006 0zM18 7l-3 6a3 3 0 006 0z" /></symbol>
+        <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" /><path d="M8.5 12l2.5 2.5 4.5-5" /></symbol>
+        <symbol id="i-coins" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3" /><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6" /><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" /></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></symbol>
+        <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></symbol>
+        <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z" /></symbol>
+        <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></symbol>
+      </defs>
+    </svg>
+
+    <header class="nav wrap">
+      <a class="logo serif" href="#top" aria-label="gudtrms home">gud<span>trms</span></a>
+      <nav>
+        <a class="nav-link" href="#how">How it works</a>
+        <a class="btn primary small" href="#start">Get started</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <!-- Hero -->
+      <section class="hero wrap">
+        <p class="eyebrow">An iMessage mediator for breakups</p>
+        <h1 class="serif">
+          <span class="hl">two exes,</span> <span class="hl">two agents,</span><br />
+          <em>zero awkward conversations.</em>
+        </h1>
+        <p class="lede">
+          Moving out after a breakup? Text gudtrms. You and your ex each get an AI advocate that splits the lease,
+          the deposit, the couch and the dog for you. It keeps your secrets, stands up for you, and gets you both a
+          fair deal in writing.
+        </p>
+        <div class="cta-row">
+          <a class="btn primary big" href="#start">Get started <svg class="icon"><use href="#i-arrow" /></svg></a>
+          <span class="cta-note"><svg class="icon"><use href="#i-chat" /></svg> iMessage · no app · no group chat</span>
+        </div>
+      </section>
+
+      <!-- The line: what you tell your agent stays on your side; only proposals and yes/no cross. -->
+      <section class="wrap" aria-label="How a negotiation looks">
+        <div class="line" id="line" data-step="7">
+          <div class="lane lane-a">
+            <div class="lane-head">
+              <span class="serif lane-name">You</span>
+              <span class="lane-lock"><svg class="icon"><use href="#i-lock" /></svg> only you and your agent</span>
+            </div>
+            <div class="chat">
+              <p class="bubble me" data-at="1">I can't go over $1,600. And Biscuit stays with me.</p>
+              <p class="bubble agent" data-at="2">Got it. That stays between us.</p>
+              <p class="bubble agent no" data-at="4">$1,615 is over your limit. I said no.</p>
+              <p class="bubble agent yes" data-at="6">$1,390 and Biscuit stays. I said yes.</p>
+            </div>
+          </div>
+
+          <div class="mid">
+            <div class="duct" aria-hidden="true">
+              <span class="duct-strip"></span>
+              <span class="duct-patch p1"></span>
+              <span class="duct-patch p2"></span>
+              <span class="duct-patch p3"></span>
+            </div>
+            <p class="eyebrow mid-label">What crosses the line</p>
+            <div class="proposal" aria-live="off">
+              <div class="proposal-round eyebrow"><span class="r1">Round 1</span><span class="r2">Round 2</span></div>
+              <div class="proposal-body">
+                <span class="r1">You keep the place, Biscuit and the TV.</span>
+                <span class="r2">The TV goes to your ex instead.</span>
+              </div>
+              <div class="proposal-pay serif num">
+                <span class="r1">You pay $1,615</span><span class="r2">You pay $1,390</span>
+              </div>
+              <div class="verdicts">
+                <span class="verdict" data-who="a"><span class="who">You</span><b class="acc"><svg class="icon"><use href="#i-check" /></svg>Accept</b><b class="rej"><svg class="icon"><use href="#i-x" /></svg>Reject</b></span>
+                <span class="verdict" data-who="b"><span class="who">Ex</span><b class="acc"><svg class="icon"><use href="#i-check" /></svg>Accept</b><b class="rej"><svg class="icon"><use href="#i-x" /></svg>Reject</b></span>
+              </div>
+              <div class="stamp deal-stamp serif" aria-hidden="true">Deal</div>
+            </div>
+            <p class="mid-note">No reasons. No free text. Just a yes or a no.</p>
+          </div>
+
+          <div class="lane lane-b">
+            <div class="lane-head">
+              <span class="serif lane-name">Your ex</span>
+              <span class="lane-lock"><svg class="icon"><use href="#i-lock" /></svg> only them and their agent</span>
+            </div>
+            <div class="chat">
+              <p class="bubble me" data-at="1">I want the couch, and I need to be out by the 30th.</p>
+              <p class="bubble agent" data-at="2">Noted. Your ex will never see this.</p>
+              <p class="bubble agent yes" data-at="4">Couch is yours, out Nov 30. I said yes.</p>
+              <p class="bubble agent yes" data-at="6">And the TV too. Still yes.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Why -->
+      <section class="wrap section" aria-labelledby="why-title">
+        <p class="eyebrow">Why gudtrms</p>
+        <h2 id="why-title" class="serif">Married couples get mediators. <em>Now you do too.</em></h2>
+        <div class="features">
+          <article class="card feature">
+            <span class="feature-icon"><svg class="icon"><use href="#i-lock" /></svg></span>
+            <h3 class="serif">Your secrets stay yours</h3>
+            <p>Tell your agent your real budget and your dealbreakers. Your ex never sees them, not even after the deal.</p>
+          </article>
+          <article class="card feature">
+            <span class="feature-icon sage"><svg class="icon"><use href="#i-scale" /></svg></span>
+            <h3 class="serif">Fair, by the math</h3>
+            <p>A neutral mediator splits everything so you each end up the same amount above your fair share, by your own numbers. Nobody wins by arguing louder.</p>
+          </article>
+          <article class="card feature">
+            <span class="feature-icon"><svg class="icon"><use href="#i-shield" /></svg></span>
+            <h3 class="serif">It talks so you don't have to</h3>
+            <p>Your agent does the back-and-forth and stands up for you. It won't agree to a deal over your budget or past a dealbreaker. Ever.</p>
+          </article>
+          <article class="card feature">
+            <span class="feature-icon sage"><svg class="icon"><use href="#i-coins" /></svg></span>
+            <h3 class="serif">Costs less than a dollar</h3>
+            <p>A mediator bills by the hour. A whole gudtrms case runs on less than a dollar of AI credits. It works over iMessage, so there's no app to install.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- How it works -->
+      <section class="wrap section how" id="how" aria-labelledby="how-title">
+        <div>
+          <p class="eyebrow">How it works</p>
+          <h2 id="how-title" class="serif">Four steps, zero <em class="nowrap">face-to-face.</em></h2>
+          <ol class="steps">
+            <li><span class="step-n serif">1</span><div><h3>Text START</h3><p>Sign up below and we'll open Messages with it ready to send.</p></div></li>
+            <li><span class="step-n serif">2</span><div><h3>We invite your ex</h3><p>One text from us, never a follow-up. You don't have to message them at all.</p></div></li>
+            <li><span class="step-n serif">3</span><div><h3>Tell your agent the truth</h3><p>What you want, what you'd pay, what you won't budge on. All of it stays private.</p></div></li>
+            <li><span class="step-n serif">4</span><div><h3>Reply YES</h3><p>Your agents settle it, and you both get the same written agreement to confirm.</p></div></li>
+          </ol>
+        </div>
+
+        <figure class="agreement" aria-label="An example agreement">
+          <span class="tape-piece" aria-hidden="true"></span>
+          <p class="eyebrow">gudtrms agreement · Case 4F7K</p>
+          <ul>
+            <li>Alex keeps the apartment and the lease. Sam moves out by Nov 30.</li>
+            <li>Alex pays Sam <b class="num">$1,390</b>: a $640 buyout plus Sam's $750 deposit share.</li>
+            <li>Sam keeps the couch and the TV.</li>
+            <li>Biscuit lives with Alex. Sam has Biscuit every other weekend.</li>
+            <li>Spotify gets cancelled.</li>
+          </ul>
+          <div class="signatures">
+            <span><i>Alex</i> <b>YES</b></span>
+            <span><i>Sam</i> <b>YES</b></span>
+          </div>
+        </figure>
+      </section>
+
+      <!-- Sign up -->
+      <section class="wrap section signup" id="start" aria-labelledby="start-title">
+        <div class="card signup-card">
+          <form id="signup-form" novalidate>
+            <p class="eyebrow">Get started</p>
+            <h2 id="start-title" class="serif">Get your <span class="brand">gud<i>trms</i></span> line.</h2>
+            <p class="signup-sub">We'll set up your private line. Then one tap opens Messages with START ready to send.</p>
+
+            <label class="field">
+              <span>Your name</span>
+              <input name="name" type="text" autocomplete="name" placeholder="Rachel Green" maxlength="80" required aria-describedby="err-name" />
+              <small class="err" id="err-name"></small>
+            </label>
+            <label class="field">
+              <span>iPhone number</span>
+              <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(734) 555-0123" maxlength="24" required aria-describedby="err-phone" />
+              <small class="err" id="err-phone"></small>
+            </label>
+            <label class="field">
+              <span>Email</span>
+              <input name="email" type="email" autocomplete="email" placeholder="you@example.com" maxlength="254" required aria-describedby="err-email" />
+              <small class="err" id="err-email"></small>
+            </label>
+            <label class="honeypot" aria-hidden="true">Website <input name="website" tabindex="-1" autocomplete="off" /></label>
+
+            <button class="btn primary big submit" type="submit">
+              <span class="label">Set up my line</span><span class="busy">Setting up your line…</span>
+            </button>
+            <p class="form-error" role="alert"></p>
+            <p class="fine">iPhone only for now, since <span class="brand">gud<i>trms</i></span> runs on iMessage. We only text you about your case. Reply STOP anytime.</p>
+          </form>
+
+          <div class="done" id="done" hidden tabindex="-1">
+            <span class="done-check"><svg class="icon"><use href="#i-check" /></svg></span>
+            <h2 class="serif">You're in, <span data-name>there</span>.</h2>
+            <p class="line-label serif">Your <span class="brand">gud<i>trms</i></span> line</p>
+            <p class="line-number serif num" data-line></p>
+            <a class="btn primary big start-btn" data-start href="#">
+              <svg class="icon"><use href="#i-chat" /></svg> Start texting
+            </a>
+            <p class="fine">Opens Messages with START typed in. Just hit send, from the phone number you signed up with.
+              Not on your iPhone? Text START to the number above from it.</p>
+
+            <details class="code-alt">
+              <summary>Your ex already started a case?</summary>
+              <p>Text their 4-character case code instead of START.</p>
+              <div class="code-row">
+                <input data-code type="text" inputmode="text" autocapitalize="characters" maxlength="4" placeholder="4F7K" aria-label="Case code" />
+                <a class="btn" data-code-btn href="#" aria-disabled="true">Text the code</a>
+              </div>
+            </details>
+            <button class="link-btn" type="button" data-reset>Not you? Start over</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="wrap footer">
+      <a class="logo serif" href="#top">gud<span>trms</span></a>
+      <p>For people who lived together and are splitting their stuff. Not for married couples, kids, or property you own together. Not legal advice.</p>
+      <p>Made in 24 hours at MHacks 2026.</p>
+    </footer>
+  </body>
+</html>

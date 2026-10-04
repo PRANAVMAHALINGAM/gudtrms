@@ -458,6 +458,7 @@ Split: **Pranav = conversation side** (everything a human sees over iMessage). *
 | Judge view | Shruti | `judge/` | done: mock (runs the real engine in the browser) + live (polls Neon read-only, 127.0.0.1 only), checked at four screen sizes (`npm run judge`). An agreement someone replied NO to shows as declined, then the next rounds play on |
 | Neon RLS + demo-seed branch, Notability screenshots | Shruti | | branches made; RLS + demo seed not started |
 | 50/50 pet option | Shruti: `Outcome` type, mediator, values, advocate dealbreaker, demo seed, judge view · Pranav: intake question, agreement line | `src/shared/`, `src/engine/`, `judge/`, `src/intake/`, `src/conversation/` | spec only, not started. Build **after** the ~3 AM full run, since it changes the shared allocation shape |
+| Landing page + sign-up (creates the Photon user, then **Start texting** opens Messages with `start` typed) | Pranav | `site/`, `src/site/` | done: `npm run site`. Checked in the browser at desktop and phone widths; the Photon create call checked against the live API (re-posting an existing user returns the same user). Not yet run with a brand-new number on a real iPhone |
 | .Tech domain | Pranav | | not started |
 | Pitch + Devpost + backup video | Both | | not started |
 

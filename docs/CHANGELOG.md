@@ -12,6 +12,30 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-04 · Pranav (landing page: messier tape)
+- The tape between the two lanes looked like a pipe: one narrow strip with a few edge points and one sheen. It now matches the judge view's duct tape. It's wider (124px), its edges are jittered from the judge view's own `jitter()`, it has two sheens side by side (like two halves), and three crooked torn-off pieces are slapped across it at the judge view's angles (-21°, 15°, -8°). On phones the strip runs across behind the proposal card, with the pieces crossing it.
+- Polygons are precomputed into CSS (the page's CSP blocks inline styles). Checked at 1440px and 375px, no sideways scroll.
+- Files: `site/index.html`, `site/styles.css`
+
+### 2026-10-04 · Pranav (landing page: favicon, privacy card)
+- Removed the "Your max: ▇▇▇" redaction bar from the privacy card. Without the judge view next to it, it read as a stray element.
+- Favicon: the same 🤝 as the judge view, now served as a file (`site/favicon.svg`, also answers `/favicon.ico`) instead of an inline data URI, so it shows up reliably behind the site's strict content security policy.
+- Files: `site/index.html`, `site/styles.css`, `site/favicon.svg`, `src/site/server.ts`
+
+### 2026-10-04 · Pranav (landing page tweaks)
+- Headline: the whole of "zero awkward conversations." is now italic terracotta, instead of only "zero awkward".
+- Pricing card now says a whole case runs on **less than a dollar of AI credits** (was "Free while in beta"). The hero button just says "Get started" (dropped "it's free").
+- The sign-up box writes gudtrms as the wordmark (bold serif "gud", italic terracotta "trms"): in the heading, the success screen's "Your gudtrms line" (was an all-caps label), and the fine print. New `.brand` class in `site/styles.css`.
+- Files: `site/index.html`, `site/styles.css`
+
+### 2026-10-04 · Pranav
+- **Landing page + sign-up** (`npm run site`, http://127.0.0.1:5200). Hero line "two exes, two agents, zero awkward conversations.", a looping two-round negotiation (your lane, the duct tape, your ex's lane; round 1 REJECT at $1,615, round 2 deal at $1,390, the section 8 numbers), four cards (privacy, fair share, your agent talks and stands up for you, free in beta), how it works, an example agreement, and the sign-up form. Same tokens, fonts, tape and stamps as the judge view.
+- **Sign-up creates the Photon user.** The form posts name, phone and email to `POST /api/signup`, which calls Photon's management API (`POST /projects/{id}/users/`, `type: "shared"`) and returns the person's `assignedPhoneNumber`. **Start texting** then opens Messages to that number with `start` typed in (`sms:<line>&body=start`). That first text both opens their case and unlocks the shared-pool line (rule: a project user who has texted their line once). Web pages can't send an iMessage themselves, so the person still taps send. There's also a box to text a case code instead, for an ex who was invited.
+- Server guards: only the three site files are served, a 4 KB body cap, a honeypot field, 5 sign-ups per IP per 10 minutes, and a strict CSP. It never logs form contents and doesn't touch Neon.
+- **Checked:** typecheck and tests (3 new for the form check). In the browser at 1440px and 375px: no sideways scroll, server errors land on the right field, and the success screen builds the right `sms:` links (I stubbed fetch, so no user was created). Against live Photon: the credentials work, and re-posting an existing user's number returns the same user and line without changing anything. **Not checked yet:** a brand-new number end to end on an iPhone. Also check that the running bot hears a user created after it started; the 10-03 entry saw a bot miss texts from a user created after startup.
+- **"Free while in beta" is a placeholder claim.** Change it in `site/index.html` if that's not the plan.
+- Files: `site/{index.html,styles.css,app.js}`, `src/site/{server,photon,signup,signup.test}.ts`, `src/site/README.md`, `package.json` (`site`), `.env.example`, `README.md`, `AGENTS.md` (section 11)
+
 ### 2026-10-04 03:10 ET · Shruti (touches Pranav's `src/llm/`, router, and leak filter: small additions only)
 - **Every Claude call now records its tokens and cost, per case.** New table `llm_usage` (one row per call: case, purpose, model, input/output/cache tokens, cost in USD). No message text, so nothing private. All calls go through `chat()` in `src/llm/claude.ts`, which now calls `recordUsage()` (`src/llm/usage.ts`); it never throws, so a reply still goes out if the row can't be written.
   - **Which case a call is for** travels with the async work (`AsyncLocalStorage`): `withUsage({ caseId, purpose })` in the router (purpose `chat`), around the leak filter's LLM check (`leak_check`), and in `negotiate()` (`advocate`). No function signatures changed.

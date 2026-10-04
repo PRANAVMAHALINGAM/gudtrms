@@ -30,4 +30,5 @@ npm run dev            # Photon hello world (terminal only until Spectrum keys a
 | `src/router/` | Pranav | Keyword × case-state routing |
 | `src/intake/` | Pranav | LLM intake agent |
 | `src/conversation/` | Pranav | Agreement text, YES, relaxation prompts |
-| `src/privacy/` | Pranav | `sendTo` + leak filter (stub for now) |
+| `src/privacy/` | Pranav | `sendTo` + leak filter |
+| `site/`, `src/site/` | Pranav | Public landing page + sign-up (creates the Photon user). `npm run site` |

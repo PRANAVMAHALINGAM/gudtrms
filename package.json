@@ -24,7 +24,8 @@
     "sim:intake": "tsx --env-file-if-exists=.env db/intake-sim.ts",
     "advocate:check": "tsx --env-file-if-exists=.env src/engine/agent-check.ts",
     "usage": "tsx --env-file-if-exists=.env db/usage-report.ts",
-    "leak:check": "tsx --env-file-if-exists=.env src/privacy/leak-check.ts"
+    "leak:check": "tsx --env-file-if-exists=.env src/privacy/leak-check.ts",
+    "site": "tsx --env-file-if-exists=.env src/site/server.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
