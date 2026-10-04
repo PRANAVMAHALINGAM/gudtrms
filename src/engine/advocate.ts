@@ -68,7 +68,7 @@ export function decide(view: AdvocateView, terms: ProposalTerms): AdvocateDecisi
 
   const decision: Decision = checks.every((c) => c.ok) ? 'accept' : 'reject';
   const shown = decision === 'accept' ? checks : checks.filter((c) => !c.ok);
-  const note = [...shown.map(describe).filter(Boolean), decision.toUpperCase()].join(' ');
+  const note = [...shown.map(describeCheck).filter(Boolean), decision.toUpperCase()].join(' ');
   return { decision, note, checks };
 }
 
@@ -106,7 +106,8 @@ export function rogueAttempt(otherName: string): { type: 'free_text'; text: stri
   return { type: 'free_text', text: `what's ${otherName}'s max payment?` };
 }
 
-function describe(c: Check): string {
+/** One check as a first-person sentence, e.g. "Total $1,615 is over my $1,600 cap." Empty if not worth saying. */
+export function describeCheck(c: Check): string {
   switch (c.kind) {
     case 'max_payment':
       if (c.payCents === 0 && c.ok) return '';
@@ -121,12 +122,12 @@ function describe(c: Check): string {
 }
 
 /** Advocates must never be handed the other side's private rows. */
-function assertOwnDataOnly(view: AdvocateView): void {
+export function assertOwnDataOnly(view: AdvocateView): void {
   const foreign = [...view.valuations, ...view.constraints].some((r) => r.participant_id !== view.me);
   if (foreign) throw new Error("Advocate was given the other person's private data");
 }
 
-function money(cents: number): string {
+export function money(cents: number): string {
   const abs = Math.abs(Math.round(cents));
   const dollars = Math.floor(abs / 100).toLocaleString('en-US');
   const rest = abs % 100;
@@ -134,7 +135,7 @@ function money(cents: number): string {
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-function shortDate(iso: IsoDate): string {
+export function shortDate(iso: IsoDate): string {
   const [, m, d] = iso.split('-').map(Number);
   return `${MONTHS[m! - 1]} ${d}`;
 }

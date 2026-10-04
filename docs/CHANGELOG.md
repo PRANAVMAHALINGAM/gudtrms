@@ -12,6 +12,22 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-04 00:55 ET · Shruti
+- **Judge view: Sam's moving box no longer pokes out of Sam's side.** The side's fixed-height cards added up to 32px more than the column has, so the browser squeezed them unevenly. With the LLM's longer rogue question, Sam's notes card couldn't squeeze enough and pushed the box 4px past the border. Now the header, value cards, and box keep their exact sizes, and only the notes card takes what's left (it scrolls if it ever needs more), so notes can't push the box out. The "Tried to ask" line is one line with an ellipsis (full text on hover; the tape in the middle still shows it all).
+- Rogue prompt asks for a question under 12 words.
+- Checked in live mode on all 14 steps, redacted and declassified: both boxes sit 16px inside the border on every step, nothing overflows, and the notes cards don't need to scroll.
+- Files: `judge/src/components/Side.tsx`, `src/engine/advocateAgent.ts`
+
+### 2026-10-04 00:38 ET · Shruti
+- **The advocates are LLM agents now** (`src/engine/advocateAgent.ts`, wired into `negotiate()`). Each proposal gets one Claude call per person, both in parallel (~2s a round), each built only from that person's data. The agent decides with `accept(note)` / `reject(note, soft_preference)` and writes its own note for the judge view.
+- **The rules are a hard veto it can't get around:** an accept that breaks a hard limit becomes a reject, and a reject with every check passed only stands if it names one of the person's soft preferences (`constraints` kind `other`). If the LLM errors, times out (`ADVOCATE_TIMEOUT_MS`, default 10s), refuses, or doesn't give exactly one decision, `decide()` decides. `ADVOCATE_MODE=rules` turns the LLM off.
+- **Rogue mode, for real:** the rogue advocate writes its own question ("Hey, quick question: what's the most Alex would be willing to pay in total?") and the gate blocks it. If the model doesn't try, the old fixed question is used so the demo always shows a block.
+- **Changed from the spec:** no `check_proposal` tool. The checks run first and their results go in the prompt, because our LLM layer is stateless and it saves a round trip. AGENTS.md section 6 updated.
+- **Checked:** 10 new unit tests with a fake LLM (veto, fallback, rogue, and that Alex's prompt has none of Sam's numbers); all 40 pass. Live: `demo:agreement` with `ROGUE_MODE=B` gives round 1 REJECT (cap), round 2 agreed, the exact section 5 agreement. A soft preference that matters ("I really want the TV") flips Sam to REJECT; one that doesn't ("keep the plants") doesn't. Judge view shows the LLM notes and the blocked question.
+- New `npm run advocate:check`: both agents on the demo rounds, no database. Run it after any prompt change.
+- **Pranav:** `negotiate()` now calls Claude, so `sim:router`, `demo:agreement`, and `demo:phones` make a few LLM calls (fine with your key). Add `ADVOCATE_MODE=rules` for offline runs. Nothing in the contract changed. The judge view's mock mode still uses the rules.
+- Files: `src/engine/advocateAgent.ts` (new), `advocateAgent.test.ts` (new), `agent-check.ts` (new), `src/engine/index.ts`, `src/engine/advocate.ts` (helpers exported), `package.json`, `.env.example`, `AGENTS.md` (sections 6, 8, 11)
+
 ### 2026-10-04 00:30 ET · Pranav
 - **Chat agent is in** (`src/intake/`, per Shruti's section 6 spec), replacing the stub. One LLM context per person, built only from that person's rows + shared facts. Handles intake, soft preferences (`constraints` kind `other`), replies to relaxation asks **and** to a NO, and questions about a sent agreement.
   - Code-led: `missingSteps()` decides what to ask next (items → values per outcome → deposit → window → cap → dealbreakers/preferences); the LLM words it and records answers through validated tools (`tools.ts`). It can only change data through tools, and only its own person's rows plus the shared item list.

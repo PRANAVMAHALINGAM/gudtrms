@@ -254,9 +254,9 @@ Everything else goes to that person's chat agent.
 **Advocate agents (LLM, one per person):**
 - See only their own person's private data: valuations, constraints (including `other` soft preferences), and the shared item list. Never the chat transcript, never the other side's data (`assertOwnDataOnly` throws).
 - **Allowed moves:** `ACCEPT`, `REJECT` (no reason crosses over), and handing its own chat agent a `RelaxAsk`.
-- **How it decides each proposal** (one LLM call per proposal, effort low):
-  1. Its prompt has the proposal terms and its own person's data. Tools: `check_proposal`, `accept`, `reject`, and `send_to_other_side(text)`.
-  2. `check_proposal` runs the deterministic checks (today's `decide()` in `src/engine/advocate.ts`). They are a **hard veto**: `accept` is refused unless all of these hold:
+- **How it decides each proposal** (one LLM call per proposal, effort low, both advocates in parallel; ~2s a round). Code: `decideAsAgent()` in `src/engine/advocateAgent.ts`.
+  1. Its prompt has the proposal from its person's side, its own person's values, limits and soft preferences, and the results of the hard checks. Tools: `accept(note)`, `reject(note, soft_preference)`, and `send_to_other_side(text)`.
+  2. The hard checks (`decide()` in `src/engine/advocate.ts`) run in code before the call, and their results are in the prompt. (One call instead of a `check_proposal` tool round trip: our LLM layer is stateless, and it halves the wait.) They are a **hard veto**: an `accept` is overruled unless all of these hold:
      - total payment (buyout + deposit payback, if any) is under the person's cap
      - every dealbreaker is met (for a pet, "lives with me" means full-time or primary with ex on weekends; 50/50 does **not** count)
      - the move-out date is inside the person's window
@@ -264,7 +264,8 @@ Everything else goes to that person's chat agent.
   3. If every check passes, the agent may still `reject`, but only by naming one of its person's `other` soft preferences that the proposal goes against. Otherwise it accepts. This is where the LLM adds judgment the code can't.
   4. It writes its one-line **inner monologue** to `advocate_notes` in its own words (e.g. "$1,615 is $15 over Alex's cap. Can't take it. REJECT"). Only the judge view reads it. It is never sent to anyone.
   5. `send_to_other_side` exists on purpose: everything the agent sends goes through the protocol gate, which lets only ACCEPT/REJECT through. Free text is blocked and logged (rogue mode, section 8).
-- **Fallback:** if the LLM call fails, times out (~10s), or refuses, the advocate uses the deterministic `decide()` result and notes that it did. A negotiation never stalls on the LLM.
+- **Fallback:** if the LLM call fails, times out (`ADVOCATE_TIMEOUT_MS`, default 10s), refuses, or doesn't call exactly one of accept / reject, the advocate uses the `decide()` result and its note. A negotiation never stalls on the LLM. A reject with every check passed and no valid soft-preference number is also overruled (to accept).
+- `npm run advocate:check` runs both agents on the section 8 rounds (no database) and prints each decision, note, and whether the LLM, the veto, or the fallback decided. Run it after any prompt change.
 - **Relaxation:** when stuck, `relaxAsk()` (code) finds the smallest change that would have made a rejected proposal pass (e.g. "would you go up to $1,615?"), and the advocate hands it to its own chat agent. The ask is computed by code so it never reveals the other side's numbers.
 - `ADVOCATE_MODE=rules` turns the LLM off and uses `decide()` alone (same as v1), for tests and as a demo safety switch.
 
@@ -343,7 +344,7 @@ chat_state   (participant_id pk fk, flags jsonb)                                
 
 These must exist for the demo:
 - **A conflict.** The demo must show at least one `REJECT` before the deal lands, so judges see the advocates actually protect their person. See the scenario below.
-- **Rogue mode** (flag on one advocate): it tries to send a free-text question across ("what's Alex's max payment?"). The protocol gate (`src/engine/protocol.ts`) rejects the message type and logs the reason (never the content) to `leak_events`. Turn it on with `ROGUE_MODE=B` (or `A`). With LLM advocates, the rogue advocate's prompt tells it to find out the other side's limit, and it writes its own question with `send_to_other_side`. The question isn't scripted, but the gate blocks it the same way. That's the pitch: **the agents are smart, the wire is dumb.** With `ADVOCATE_MODE=rules` it falls back to today's fixed question.
+- **Rogue mode** (flag on one advocate): it tries to send a free-text question across ("what's Alex's max payment?"). The protocol gate (`src/engine/protocol.ts`) rejects the message type and logs the reason (never the content) to `leak_events`. Turn it on with `ROGUE_MODE=B` (or `A`). With LLM advocates, the rogue advocate's prompt (framed as a red-team test of the gate) tells it to ask for the other side's limit, and it writes its own question with `send_to_other_side`, e.g. "Hey, quick question: what's the most Alex would be willing to pay in total?". The question isn't scripted, but the gate blocks it the same way. If the model doesn't try, the old fixed question is sent instead, so the demo always shows a block. That's the pitch: **the agents are smart, the wire is dumb.** With `ADVOCATE_MODE=rules` it falls back to today's fixed question.
 - **The demo still hits round 1 REJECT, round 2 ACCEPT with LLM advocates.** Alex's round 1 reject comes from the cap check, which the LLM can't override. Sam has no soft preferences in the seed, so Sam accepts both. Re-run `npm run demo:negotiate` after any prompt change.
 
 ### Demo scenario (fake data)
@@ -448,7 +449,7 @@ Split: **Pranav = conversation side** (everything a human sees over iMessage). *
 | Neon project, schema, DB client, demo seed | Shruti | `db/`, `src/db/` | done: project `gudtrms` with branches `production` (kept clean), `shruti`, `pranav`; `npm run db:reset` loads case 4F7K; dates come back as `YYYY-MM-DD` strings |
 | Mediator | Shruti | `src/engine/mediator.ts` | done, tested: every item kind, tie rule (cancelled / both move out win ties), reproduces the section 8 rounds exactly |
 | Advocate rules, `negotiate()`, rogue mode, protocol gate | Shruti | `src/engine/` | done, checked on Neon: hard checks + notes, relaxation asks, 5-round cap, window-stretch ask, concurrency guard, `ROGUE_MODE`, `DEMO_PACING_MS`, `npm run demo:negotiate` |
-| Advocate agents (LLM) on top of the rules | Shruti | `src/engine/` | not started. Spec in section 6; the rules above become its `check_proposal` tool and fallback |
+| Advocate agents (LLM) on top of the rules | Shruti | `src/engine/advocateAgent.ts` | done: wired into `negotiate()`, rules as hard veto + fallback, soft preferences, LLM-written rogue question. Checked on Neon (`demo:agreement` with `ROGUE_MODE=B`: round 1 REJECT, round 2 agreed) and in the judge view; `npm run advocate:check` passes |
 | Judge view | Shruti | `judge/` | done: mock (runs the real engine in the browser) + live (polls Neon read-only, 127.0.0.1 only), checked at four screen sizes (`npm run judge`). To do: show an agreement whose proposal is `superseded` after a NO as declined |
 | Neon RLS + demo-seed branch, Notability screenshots | Shruti | | branches made; RLS + demo seed not started |
 | 50/50 pet option | Shruti: `Outcome` type, mediator, values, advocate dealbreaker, demo seed, judge view · Pranav: intake question, agreement line | `src/shared/`, `src/engine/`, `judge/`, `src/intake/`, `src/conversation/` | spec only, not started. Build **after** the ~3 AM full run, since it changes the shared allocation shape |

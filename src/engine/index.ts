@@ -10,8 +10,12 @@
 // Relaxing a constraint should UPDATE the person's existing constraint row, not add a second one
 // (an advocate applies every cap row it sees, so the old, stricter cap would still win).
 //
-// Rogue mode: with ROGUE_MODE=B (or A), that advocate tries once, on the first proposal, to send a
-// free-text question across. The protocol blocks it and logs it to leak_events; the deal is unaffected.
+// Advocates are LLM agents (advocateAgent.ts) with the rules in advocate.ts as a hard veto and fallback.
+// ADVOCATE_MODE=rules turns the LLM off.
+//
+// Rogue mode: with ROGUE_MODE=B (or A), that advocate is told, on the first proposal, to find out the
+// other side's limit, and writes its own question. The protocol blocks it and logs it to leak_events;
+// the deal is unaffected.
 
 import { setTimeout as sleep } from 'node:timers/promises';
 import { query } from '../db/client.ts';
@@ -19,7 +23,8 @@ import type { Negotiate, NegotiationResult, RelaxAsk } from '../shared/contract.
 import type {
   CaseStatus, Constraint, Decision, DepositContribution, IsoDate, Item, Participant, Role, Uuid, Valuation,
 } from '../shared/types.ts';
-import { decide, relaxAsk, rogueAttempt, type AdvocateView, type ProposalTerms } from './advocate.ts';
+import { relaxAsk, type AdvocateView, type ProposalTerms } from './advocate.ts';
+import { decideAsAgent } from './advocateAgent.ts';
 import { candidates, type MoveOutWindow } from './mediator.ts';
 import { checkWire } from './protocol.ts';
 
@@ -86,17 +91,32 @@ export const negotiate: Negotiate = async (caseId) => {
       const proposalId = proposal!.id;
       await pace();
 
-      let allAccept = true;
-      for (const { participant, view } of advocates) {
+      // Both advocate agents think at the same time, each in its own LLM context with only its own
+      // person's data. Their moves are then written one at a time so the judge view can follow.
+      const thinking = advocates.map(({ participant, view }) => {
         const other = participant.id === a.id ? b : a;
+        const isRogue = participant.role === rogue && !rogueTried;
+        return decideAsAgent(view, terms, {
+          meName: participant.display_name ?? 'your person',
+          otherName: other.display_name ?? 'your ex',
+          otherId: other.id,
+          rogue: isRogue,
+        });
+      });
+      if (advocates.some(({ participant }) => participant.role === rogue)) rogueTried = true;
+      const decided = await Promise.all(thinking);
 
-        if (participant.role === rogue && !rogueTried) {
-          rogueTried = true;
-          await sendAcross(caseId, proposalId, participant, other, rogueAttempt(other.display_name ?? 'your ex'));
+      let allAccept = true;
+      for (const [i, { participant }] of advocates.entries()) {
+        const other = participant.id === a.id ? b : a;
+        const { decision, note, attempts } = decided[i]!;
+
+        // Anything besides ACCEPT / REJECT goes through the gate too, where it's blocked and logged.
+        for (const text of attempts) {
+          await sendAcross(caseId, proposalId, participant, other, { type: 'free_text', text });
           await pace();
         }
 
-        const { decision, note } = decide(view, terms);
         // decisions has no reason column on purpose; the note goes to advocate_notes (judge view only).
         await query('insert into advocate_notes (case_id, proposal_id, participant_id, note) values ($1, $2, $3, $4)',
           [caseId, proposalId, participant.id, note]);

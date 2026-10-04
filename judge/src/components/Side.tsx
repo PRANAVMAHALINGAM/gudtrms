@@ -116,8 +116,12 @@ function Monologue({ view, p, right, redacted }: { view: View; p: Participant; r
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {notes.length === 0 && !rogue && <div style={{ color: 'var(--ink-3)', fontSize: 18, fontStyle: 'italic', fontFamily: 'var(--font-display)' }}>Nothing to decide yet.</div>}
         {rogue && (
-          <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--nodeal)', display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Icon name="ban" size={18} /> Tried to ask: "{rogue.note.match(/"(.*)"/)?.[1] ?? '?'}"
+          // One line here; the full question shows on the tape in the middle.
+          <div title={rogue.note.match(/"(.*)"/)?.[1]} style={{ fontSize: 17, fontWeight: 600, color: 'var(--nodeal)', display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
+            <Icon name="ban" size={18} />
+            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              Tried to ask: "{rogue.note.match(/"(.*)"/)?.[1] ?? '?'}"
+            </span>
           </div>
         )}
         <AnimatePresence initial={false}>
@@ -165,7 +169,9 @@ export function Side({ s, p, view, items, declassified, onSelect, selectedId, si
       animate={{ borderColor: ring, backgroundColor: decision ? (decision === 'accept' ? 'rgba(225,235,223,.45)' : 'rgba(246,221,215,.45)') : 'rgba(255,252,247,0)' }}
       transition={{ duration: 0.3 }}
       style={{ height: '100%', borderRadius: 32, border: '2px solid transparent', padding: 'var(--s2)', margin: 'calc(-1 * var(--s2))', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexDirection: right ? 'row-reverse' : 'row', height: 56 }}>
+      {/* Header, cards, and box keep their exact sizes; only the notes card takes what's left (and scrolls if
+          it ever needs more), so long notes can't push the moving box out of the side. */}
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexDirection: right ? 'row-reverse' : 'row', height: 56, flexShrink: 0 }}>
         <div style={{ textAlign: right ? 'right' : 'left' }}>
           <div className="serif" style={{ fontWeight: 600, fontSize: 44, lineHeight: 1, letterSpacing: '-0.02em' }}>
             {nameOf(p)}<span style={{ fontStyle: 'italic', fontWeight: 400, color: 'var(--ink-3)' }}>'s side</span>
@@ -188,14 +194,14 @@ export function Side({ s, p, view, items, declassified, onSelect, selectedId, si
         </AnimatePresence>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: 'var(--s2)', height: 244 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: 'var(--s2)', height: 242, flexShrink: 0 }}>
         <Values s={s} p={p} redacted={!declassified} />
         <Limits s={s} p={p} redacted={!declassified} />
       </div>
 
-      <div style={{ height: 176 }}><Monologue view={view} p={p} right={right} redacted={!declassified} /></div>
+      <div style={{ flex: '1 1 0', minHeight: 0 }}><Monologue view={view} p={p} right={right} redacted={!declassified} /></div>
 
-      <div>
+      <div style={{ flexShrink: 0 }}>
         <MovingBox owner={nameOf(p)} items={items} taped={view.split} onSelect={onSelect} selectedId={selectedId} flip={right}>
           {(iou || keys) && (
             <div style={{ position: 'absolute', top: 44, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 'var(--s3)', alignItems: 'center', zIndex: 10 }}>
