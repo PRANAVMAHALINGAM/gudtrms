@@ -33,6 +33,13 @@ const handleByTerminalChat = new Map<string, string>();
 /** One promise chain per handle, so one person's messages are handled in order without blocking the other. */
 const queues = new Map<string, Promise<void>>();
 
+/** Simulations and tests: when set, sendToHandle calls this instead of sending anything. */
+let capture: ((handle: string, text: string) => void | Promise<void>) | undefined;
+
+export function captureOutbound(fn: typeof capture): void {
+  capture = fn;
+}
+
 export function messagingProvider(): MessagingProvider {
   return process.env.MESSAGING_PROVIDER === 'imessage' ? 'imessage' : 'terminal';
 }
@@ -74,6 +81,16 @@ function handleFor(c: Connection, space: Space, message: Message): string {
   return message.sender?.id ?? '';
 }
 
+let markConnected: () => void = () => {};
+const connected = new Promise<void>((resolve) => {
+  markConnected = resolve;
+});
+
+/** Resolves once startMessaging has connected, for scripts that send before any message arrives. */
+export function whenConnected(): Promise<void> {
+  return connected;
+}
+
 /**
  * Connects to Photon and calls `onMessage` for every inbound text message.
  * Resolves only when the message stream ends.
@@ -82,6 +99,7 @@ export async function startMessaging(onMessage: InboundHandler): Promise<void> {
   if (conn) throw new Error('startMessaging was already called.');
   const c = await connect(messagingProvider());
   conn = c;
+  markConnected();
   // MESSAGING_DEBUG=1 logs connection and event metadata (never message text).
   const debug = process.env.MESSAGING_DEBUG === '1';
   if (debug) console.log(`[messaging] connected via ${c.provider}, waiting for messages`);
@@ -112,6 +130,7 @@ export async function startMessaging(onMessage: InboundHandler): Promise<void> {
  * through `sendTo` in src/privacy instead.
  */
 export async function sendToHandle(handle: string, text: string): Promise<void> {
+  if (capture) return capture(handle, text);
   if (!conn) throw new Error('Messaging is not started. Call startMessaging first.');
   let space = spaceByHandle.get(handle);
   if (!space) {
