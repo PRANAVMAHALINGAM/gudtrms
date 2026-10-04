@@ -157,7 +157,7 @@ export default function App() {
                 <div>
                   <div className="serif" style={{ fontWeight: 600, fontSize: 56 }}>{mode === 'live' ? (live.error ? 'Live data is offline' : 'Waiting for a case…') : 'Loading…'}</div>
                   <div style={{ fontSize: 22, color: 'var(--ink-2)', marginTop: 'var(--s2)' }}>
-                    {live.error ? `${live.error}. Check DATABASE_URL in the repo's .env, or press L for mock data.` : 'Run npm run db:reset and npm run demo:negotiate, or press L for mock data.'}
+                    {live.error ? `${live.error}. Check DATABASE_URL in the repo's .env, or press L for mock data.` : 'Text start to gudtrms to open one. This screen fills in as soon as it begins. Press L for mock data.'}
                   </div>
                 </div>
               </div>

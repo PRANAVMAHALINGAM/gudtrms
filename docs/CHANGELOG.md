@@ -12,6 +12,11 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-04 10:05 ET · Shruti (judge view: waiting state)
+- The live judge view (`/demo`) now skips the seeded demo case 4F7K when it picks which case to show, so it says "Waiting for a case…" until a real case starts. The demo data stays in Neon; `?code=4F7K` still pins it. The waiting hint now says to text `start` instead of mentioning `db:reset`.
+- Why: after `db:reset` the demo case was the "latest" one, so a fresh live run opened on an old closed case.
+- Files: `judge/server/snapshot.ts`, `judge/src/App.tsx`. The hosted judge service needs a rebuild to pick this up (`docker compose --profile https up -d --build judge` on Lightsail).
+
 ### 2026-10-04 · Shruti (pitch README)
 - Rewrote `README.md` as the pitch for the "judged by an LLM" track: visual hook (pitch poster 2), the problem in US stats (from poster 1, sources kept), what it does, a "typical LLM mediator vs gudtrms" table, the Alex & Sam rounds, a Mermaid diagram, run-in-60-seconds steps, honest limits, roadmap, team. The old setup, Docker, layout and known-limitation content is kept (condensed) at the bottom or in the limits section.
 - Every claim is checkable in the repo (59 tests pass, rounds match AGENTS.md section 8).

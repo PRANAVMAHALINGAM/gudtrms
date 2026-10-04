@@ -5,6 +5,7 @@
 // Never logs row contents.
 
 import { neon, types } from '@neondatabase/serverless';
+import { demoCase } from '../../src/shared/demoScenario.ts';
 
 export interface Snapshot {
   source: 'live';
@@ -40,7 +41,11 @@ function db() {
   return sql;
 }
 
-/** The case to show: the one with `code`, or else the one with the most recent activity. */
+/**
+ * The case to show: the one with `code`, or else the one with the most recent activity.
+ * The seeded demo case stays in the database but is skipped here, so the live screen says
+ * "Waiting for a case…" until a real one starts. Pin it with `?code=4F7K`.
+ */
 export async function snapshot(code?: string): Promise<Snapshot> {
   const q = db();
   const [found] = (await q.transaction([
@@ -49,9 +54,10 @@ export async function snapshot(code?: string): Promise<Snapshot> {
       : q.query(
         `select c.id, c.code, c.status from cases c
          left join proposals p on p.case_id = c.id
+         where c.code <> $1
          group by c.id
          order by greatest(c.created_at, max(p.created_at)) desc nulls last
-         limit 1`),
+         limit 1`, [demoCase.code]),
   ], { readOnly: true })) as [{ id: string; code: string; status: string }[]];
 
   const theCase = found?.[0];
