@@ -69,7 +69,7 @@ We want gudtrms itself to invite Person B, because people splitting up often are
 ### iMessage notes
 - **Credentials:** Photon project ID + secret (cloud mode), in `.env`, never committed. Local mode reads the macOS Messages database directly with no credentials, which is an option for dev on a Mac.
 - **Lines:** Free/Pro plans route each user through a number from a **shared pool**, so A and B may text different numbers. Fine for us, since everything is 1:1 DMs and the router keys on the user's handle, not our number. A dedicated number needs the Business plan.
-- **Texting first:** `const dm = await im.space.create(await im.user("+15551111111")); await dm.send("...")`. This is how the invite to B is sent (section 5).
+- **Texting first:** `const dm = await im.space.create(await im.user("+15551111111")); await dm.send("...")`. This is how the invite to B is sent (section 5). **On the Free/Pro shared pool this only works for numbers added as Photon project users that have already texted their line once** (section 10). If the invite fails, A gets the case code to pass on instead.
 - **Limits:** 50 new conversations per line per day (the first message to someone the line has never texted), 5,000 messages per server per day. Plenty for a demo.
 - **No 24-hour window, no templates.** But the invite rules in section 5 still apply. Nothing in iMessage stops us from texting anyone, so those rules are the only thing keeping gudtrms from being a way to get around a block.
 - **Test with iPhones:** every demo phone (and any judge who tries it) must be on iMessage.
@@ -371,9 +371,9 @@ A web page on the demo laptop that shows judges the advocates negotiating. The e
 ## 10. Open questions
 
 - [x] Which LLM provider and model? **Decided:** Claude Sonnet 5.5 (`claude-sonnet-5-5`) at low effort (`LLM_MODEL` / `LLM_EFFORT` override it). Swappable to Grok or Gemini via `src/llm/`.
-- [ ] Photon setup: project created at app.photon.codes, iMessage turned on, project ID + secret in `.env`? Are all demo phones iPhones?
+- [x] Photon setup: project created at app.photon.codes, iMessage turned on, project ID + secret in `.env`? Are all demo phones iPhones? **Done:** iMessage connected on the shared pool, keys in `.env`, tested both ways with two iPhones. Every demo phone must be an iPhone (or a Mac sending from an iPhone's number): the shared pool drops email-only iMessage handles.
 - [ ] Photon booth: if our iMessage line texts an Android number, does it fall back to SMS/RCS, and does that need carrier (10DLC) registration? If yes and no, we get Android for free.
-- [ ] Photon booth: on the shared-pool line, does `im.space.create` to a brand-new number work on the free plan?
+- [x] Photon booth: on the shared-pool line, does `im.space.create` to a brand-new number work on the free plan? **Answered by testing: no.** The line only texts numbers added as users of the Photon project, and only after that person has texted their assigned line once (otherwise `Target not allowed for this project`). For the demo, add every demo phone as a user and have it text in once. The Business plan (dedicated line) has no allowlist; ask the booth if we want real invites.
 - [ ] Photon and Neon prize requirements (MHacks prizes page, behind login)
 - [ ] Does the item list need both people to approve it before valuations start?
 - [x] What happens if someone replies `NO` to the agreement? **Decided: back to the table.** The deal is superseded and the case goes to `needs_relaxation`. The person who said NO is asked privately what doesn't work; the other person is told only "They didn't confirm yet". Their agent updates their values or limits, then `negotiate()` runs again and a new agreement needs two new YESes. Anything else (not a bare YES or NO) is just chat with their agent.
@@ -385,10 +385,10 @@ Split: **Pranav = conversation side** (everything a human sees over iMessage). *
 | Area | Owner | Folder | Status |
 |---|---|---|---|
 | Photon setup + messaging adapter (incl. invite to a new number) | Pranav | `src/messaging/` | done; tested both ways on iMessage with two iPhones (see changelog for the shared-pool rules) |
-| Router (keyword × case state) | Pranav | `src/router/` | done (start, invite, JOIN/code, STOP, YES); checked on Neon with `npm run sim:router` |
-| Intake agent (LLM) | Pranav | `src/intake/` | not started |
+| Router (keyword × case state) | Pranav | `src/router/` | done (start, invite, JOIN/code, STOP, YES, NO); checked on Neon with `npm run sim:router` and on two iPhones |
+| Intake agent (LLM) | Pranav | `src/intake/` | not started (stub only). LLM layer ready: `src/llm/`, Claude Sonnet 5.5, `npm run llm:check` passes |
 | Agreement text, YES confirmation, relaxation prompts | Pranav | `src/conversation/` | agreement + YES + relaxation asks done (`npm run demo:agreement`); handling the reply to a relaxation ask not started |
-| Leak filter (wraps every outbound send) | Pranav | `src/privacy/` | not started |
+| Leak filter (wraps every outbound send) | Pranav | `src/privacy/` | not started (`askYesNo()` for the LLM check is ready in `src/llm/`) |
 | Neon schema, DB client, demo seed | Shruti | `db/`, `src/db/` | done, checked on Neon |
 | Mediator | Shruti | `src/engine/` | done, tested |
 | Advocates, `negotiate()`, rogue mode | Shruti | `src/engine/` | done, checked on Neon |

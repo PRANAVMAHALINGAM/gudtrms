@@ -12,6 +12,13 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-03 22:40 ET · Pranav
+- **AGENTS.md brought up to date with what's done** (docs only, no code):
+  - Section 10: checked off "Photon setup" (connected, keys in `.env`, tested on two iPhones; email-only handles don't work) and "does `im.space.create` reach a brand-new number on the free plan" (no: only project users who have texted their line once; Business plan has no allowlist).
+  - Section 3, iMessage notes: the "Texting first" note now says the same, since the old text implied we can text anyone. The decision to use iMessage is unchanged.
+  - Section 11: router row includes NO and the two-iPhone test; intake and leak filter rows note that the LLM layer (`src/llm/`, `askYesNo()`) is ready.
+- Still open in section 10: Android fallback, prize requirements, and whether both people approve the item list.
+
 ### 2026-10-03 22:15 ET · Pranav
 - **Decided (team call): NO to the agreement = back to the table** (AGENTS.md sections 5, 6, 10). A bare `NO` / `nope` / `nah` / `n` while `awaiting_confirmation` supersedes the deal and moves the case to `needs_relaxation`. The person who said NO is asked privately what doesn't work. The other is told only "They didn't confirm yet. I'm working on a new version." A new agreement gets a new row, so both YESes start over. "no way, the couch is mine" is not a keyword; it goes to the agent. Code: `declineAgreement()` in `src/conversation/confirm.ts`, router hook, scenario 5 in `npm run sim:router` (passes).
 - **Shruti:** after a NO, the latest `agreements` row stays (with whatever YES it had) and its proposal is `superseded`, until the next agreement row is written. The judge view may want to treat a superseded proposal's agreement card as "declined".
