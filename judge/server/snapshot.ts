@@ -18,7 +18,8 @@ export interface Snapshot {
   decisions: { proposal_id: string; participant_id: string; decision: 'accept' | 'reject'; created_at: string }[];
   notes: { proposal_id: string | null; participant_id: string; note: string; created_at: string }[];
   leaks: { id: string; target_participant_id: string | null; reason: string; created_at: string }[];
-  agreement: { id: string; proposal_id: string; text: string; a_confirmed: boolean; b_confirmed: boolean; created_at: string } | null;
+  /** Oldest first. More than one only if someone replied NO to an earlier one (its proposal is then `superseded`). */
+  agreements: { id: string; proposal_id: string; text: string; a_confirmed: boolean; b_confirmed: boolean; created_at: string }[];
 }
 
 let sql: ReturnType<typeof neon> | undefined;
@@ -54,7 +55,7 @@ export async function snapshot(code?: string): Promise<Snapshot> {
   const theCase = found?.[0];
   if (!theCase) {
     return { source: 'live', case: null, participants: [], items: [], valuations: [], constraints: [], deposits: [],
-      proposals: [], decisions: [], notes: [], leaks: [], agreement: null };
+      proposals: [], decisions: [], notes: [], leaks: [], agreements: [] };
   }
 
   const id = theCase.id;
@@ -74,7 +75,7 @@ export async function snapshot(code?: string): Promise<Snapshot> {
     q.query(`select id, target_participant_id, reason, created_at from leak_events
              where case_id = $1 order by created_at`, [id]),
     q.query(`select id, proposal_id, text, a_confirmed, b_confirmed, created_at from agreements
-             where case_id = $1 order by created_at desc limit 1`, [id]),
+             where case_id = $1 order by created_at`, [id]),
   ], { readOnly: true }) as unknown[][];
 
   const [participants, items, valuations, constraints, deposits, proposals, decisions, notes, leaks, agreements] = results;
@@ -93,6 +94,6 @@ export async function snapshot(code?: string): Promise<Snapshot> {
     decisions: decisions as Snapshot['decisions'],
     notes: notes as Snapshot['notes'],
     leaks: leaks as Snapshot['leaks'],
-    agreement: (agreements as NonNullable<Snapshot['agreement']>[])[0] ?? null,
+    agreements: agreements as Snapshot['agreements'],
   };
 }

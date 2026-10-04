@@ -16,7 +16,7 @@ import { buzz, rip, setMuted, thud, tick, unlockAudio } from './sound.ts';
 const params = new URLSearchParams(location.search);
 const EMPTY: Snapshot = {
   source: 'live', case: null, participants: [], items: [], valuations: [], constraints: [], deposits: [],
-  proposals: [], decisions: [], notes: [], leaks: [], agreement: null,
+  proposals: [], decisions: [], notes: [], leaks: [], agreements: [],
 };
 
 function readMode(): Mode {
@@ -79,6 +79,7 @@ export default function App() {
     else if (st.kind === 'verdict') { thud(true); if (!st.deal) doShake(); }
     else if (st.kind === 'rogue') { buzz(); setTimeout(() => { thud(true); doShake(); }, 420); }
     else if (st.kind === 'agreement' || st.kind === 'sign') tick();
+    else if (st.kind === 'declined') { thud(true); doShake(); }
     else if (st.kind === 'split') setTimeout(() => rip(true), 200);
   });
 

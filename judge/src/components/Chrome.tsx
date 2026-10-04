@@ -17,6 +17,7 @@ export function Header({ s, view, mode, onMode, declassified, onDeclassify, mute
     Intake: { bg: 'var(--surface)', fg: 'var(--ink-2)' },
     Negotiating: { bg: 'var(--accent-soft)', fg: 'var(--accent)' },
     Agreed: { bg: 'var(--deal-soft)', fg: 'var(--deal)' },
+    Declined: { bg: 'var(--nodeal-soft)', fg: 'var(--nodeal)' },
     Parted: { bg: 'var(--deal)', fg: 'var(--surface)' },
     Stuck: { bg: 'var(--nodeal-soft)', fg: 'var(--nodeal)' },
   }[view.status];
@@ -40,7 +41,7 @@ export function Header({ s, view, mode, onMode, declassified, onDeclassify, mute
           {Array.from({ length: ROUND_CAP }, (_, i) => {
             const past = view.past.find((r) => r.round === i + 1);
             const now = round === i + 1;
-            const bg = past ? (past.deal ? 'var(--deal)' : 'var(--nodeal)') : now ? 'var(--accent)' : 'var(--line-strong)';
+            const bg = past ? (past.deal && !past.declined ? 'var(--deal)' : 'var(--nodeal)') : now ? 'var(--accent)' : 'var(--line-strong)';
             return <motion.span key={i} animate={{ scale: now ? 1.3 : 1 }} style={{ width: 10, height: 10, borderRadius: 99, background: bg }} />;
           })}
         </div>
@@ -77,6 +78,7 @@ export function stepLabel(s: Snapshot, st: Step | undefined): string {
     case 'verdict': return `Round ${st.round} · ${st.deal ? 'deal' : 'no deal'}`;
     case 'agreement': return 'The agreement goes out to both';
     case 'sign': return `${who(st.participantId)} replies YES`;
+    case 'declined': return `${st.byId ? `${who(st.byId)} replies NO` : 'Not confirmed'} · back to the table`;
     case 'split': return 'Parted on gudtrms';
     default: return '';
   }
@@ -90,6 +92,7 @@ function marker(st: Step): { color: string; icon?: string; label?: string; big?:
     case 'rogue': return { color: 'var(--nodeal)', icon: 'ban' };
     case 'agreement': return { color: 'var(--accent)', icon: 'receipt' };
     case 'sign': return { color: 'var(--deal)', icon: 'check' };
+    case 'declined': return { color: 'var(--nodeal)', icon: 'x' };
     case 'split': return { color: 'var(--accent)', icon: 'bolt', big: true };
     default: return { color: 'var(--kraft-dark)', icon: 'box' };
   }

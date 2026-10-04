@@ -29,7 +29,7 @@ export function mockSnapshot(valuations: Valuation[] = demoValuations, rogue = t
     valuations,
     constraints: demoConstraints,
     deposits: demoDeposits.map((d) => ({ participant_id: d.participant_id, amount_cents: d.amount_cents })),
-    proposals: [], decisions: [], notes: [], leaks: [], agreement: null,
+    proposals: [], decisions: [], notes: [], leaks: [], agreements: [],
   };
 
   let round = 0;
@@ -67,11 +67,11 @@ export function mockSnapshot(valuations: Valuation[] = demoValuations, rogue = t
     }
     snap.proposals[snap.proposals.length - 1]!.status = allAccept ? 'accepted' : 'rejected';
     if (allAccept) {
-      snap.agreement = { id: 'mock-agreement', proposal_id: id, text: '', a_confirmed: true, b_confirmed: true, created_at: at() };
+      snap.agreements.push({ id: 'mock-agreement', proposal_id: id, text: '', a_confirmed: true, b_confirmed: true, created_at: at() });
       snap.case!.status = 'closed';
       break;
     }
   }
-  if (!snap.agreement && round > 0) snap.case!.status = 'needs_relaxation';
+  if (!snap.agreements.length && round > 0) snap.case!.status = 'needs_relaxation';
   return snap;
 }

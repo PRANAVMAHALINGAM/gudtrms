@@ -22,6 +22,16 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 - `askYesNo` takes an effort and reads the last YES/NO in the answer; the fake LLM answers `VERDICT: NO` to checks.
 - Files: `src/privacy/{leaks,leakFilter,sendTo,leak-check}.ts`, `leaks.test.ts`, `README.md`, `src/intake/{index,tools,store,prompt}.ts`, `tools.test.ts`, `src/llm/index.ts`, `db/intake-sim.ts`, `package.json` (`leak:check`), `.env.example`, `AGENTS.md` (sections 6, 11)
 
+### 2026-10-04 01:20 ET · Shruti
+- **Judge view: a NO to the agreement now shows as declined** instead of making the agreed round vanish. Before, the view dropped every `superseded` proposal, so after a NO judges saw round 1 REJECT and then nothing.
+  - The agreement card comes up as usual, then gets a red DECLINED stamp. The signature lines show who replied YES and who replied NO, plus a note: back to the table, that person is asked privately what doesn't work, and the other side only hears it wasn't confirmed yet. Header status: Declined.
+  - Then the next run's rounds play on. The past-rounds pill reads "Round 2 · deal, then NO" (red), and the new agreement starts with both signatures blank.
+  - Who said NO is worked out from the YESes on that agreement (if exactly one person had confirmed, it was the other). Nothing records the NO itself, so otherwise it just says "Not confirmed".
+  - A superseded proposal **without** an agreement (left behind when a `negotiate()` run fails midway) is still hidden, since it was never agreed.
+- `/api/snapshot` now returns every agreement for the case (`agreements`, oldest first) instead of only the latest (`agreement`).
+- Checked: in live mode with a made-up case (round 1 reject, round 2 deal, Alex YES, Sam NO, a hidden crash leftover, round 4 deal). The steps come out in the right order, the declined card fits on the 1080 stage (100px spare top and bottom), and the console has no errors. Mock mode is unchanged (14 steps, ends in the split). The real snapshot from Neon has the new shape. Typecheck clean, 43/43 tests pass.
+- Files: `judge/server/snapshot.ts`, `judge/src/data/{timeline,mock}.ts`, `judge/src/App.tsx`, `judge/src/components/{Overlays,Chrome,TapeZone}.tsx`, `AGENTS.md` (section 11)
+
 ### 2026-10-04 00:55 ET · Shruti
 - **Judge view: Sam's moving box no longer pokes out of Sam's side.** The side's fixed-height cards added up to 32px more than the column has, so the browser squeezed them unevenly. With the LLM's longer rogue question, Sam's notes card couldn't squeeze enough and pushed the box 4px past the border. Now the header, value cards, and box keep their exact sizes, and only the notes card takes what's left (it scrolls if it ever needs more), so notes can't push the box out. The "Tried to ask" line is one line with an ellipsis (full text on hover; the tape in the middle still shows it all).
 - Rogue prompt asks for a question under 12 words.
