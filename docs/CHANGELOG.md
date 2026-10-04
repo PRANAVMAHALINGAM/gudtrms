@@ -12,6 +12,16 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-04 02:30 ET · Pranav
+- **Leak filter is in** (`src/privacy/`, privacy rule 5). Every outbound message: a **number/date check** (code) blocks any amount or date that is one of the other person's private values, unless it's the recipient's own, a shared fact (deposits, fee), in a proposal/agreement of this case, or something the recipient said. Every **chat-agent reply** also gets an **LLM check** for words that reveal or guess the other side's data ("Alex really wants the dog"). The checker never sees the other person's data (rule 1): it gets the message, the recipient's own answers, shared facts, the agreement, and examples, reasons in a sentence, then gives `VERDICT: YES/NO`; unclear blocks.
+  - On a block: `leak_events` gets the reason only. A fixed message is replaced with a safe line; an agent reply is rewritten once without specifics, then replaced with a safe line. Blocked text is never sent or stored.
+  - Tuning took a few rounds: a bare one-word YES/NO at low effort blocked long recaps of the person's own answers (they mention the ex in pet arrangements). Letting it reason first at medium effort, plus the recipient's own answers in plain words, fixed it.
+  - **Checked:** `npm run leak:check` (new): 12 messages with real Claude, 4 planted leaks blocked, 8 normal ones sent, twice in a row. Two full `sim:intake` runs: **0 false blocks** (the sim now asserts this). Unit tests for the parsing.
+  - **Cost:** about 1.5-2.5s per agent reply (median reply now ~4.2s, was ~2.4s). `LEAK_LLM_CHECK=off` skips the LLM check if that's too slow on the phones; the number check always runs. New `.env` settings: `LEAK_LLM_CHECK`, `LEAK_LLM_EFFORT`, `LEAK_DEBUG` (prints blocked text, fake data only).
+- **Chat agent can drop a soft preference** (`remove_soft_preference`), in intake and when no deal fits. Needed since Shruti's advocates can reject on soft preferences: before this, a preference blocking every deal couldn't be let go. Its prompt also no longer suggests a dollar amount itself (the old "$200" example was Alex's couch value in the demo).
+- `askYesNo` takes an effort and reads the last YES/NO in the answer; the fake LLM answers `VERDICT: NO` to checks.
+- Files: `src/privacy/{leaks,leakFilter,sendTo,leak-check}.ts`, `leaks.test.ts`, `README.md`, `src/intake/{index,tools,store,prompt}.ts`, `tools.test.ts`, `src/llm/index.ts`, `db/intake-sim.ts`, `package.json` (`leak:check`), `.env.example`, `AGENTS.md` (sections 6, 11)
+
 ### 2026-10-04 00:55 ET · Shruti
 - **Judge view: Sam's moving box no longer pokes out of Sam's side.** The side's fixed-height cards added up to 32px more than the column has, so the browser squeezed them unevenly. With the LLM's longer rogue question, Sam's notes card couldn't squeeze enough and pushed the box 4px past the border. Now the header, value cards, and box keep their exact sizes, and only the notes card takes what's left (it scrolls if it ever needs more), so notes can't push the box out. The "Tried to ask" line is one line with an ellipsis (full text on hover; the tape in the middle still shows it all).
 - Rogue prompt asks for a question under 12 words.

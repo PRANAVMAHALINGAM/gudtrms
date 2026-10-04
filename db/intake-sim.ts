@@ -138,7 +138,12 @@ try {
      where p.handle = $1 order by a.created_at desc limit 1`, [ALEX]);
   assert.ok(next!.text.includes('Alex pays Sam $865 as a buyout.'), "the round-1 deal now fits Alex's new cap");
   assert.ok(next!.text.includes('Total: Alex pays Sam $1,615.'));
-  console.log('\nAll intake checks passed: demo recorded exactly, deal landed, and NO -> raise cap -> new deal works.');
+  // Nothing in an honest conversation should trip the leak filter.
+  const blocks = await query<{ reason: string }>(
+    'select reason from leak_events where case_id = (select case_id from participants where handle = $1)', [ALEX]);
+  for (const b of blocks) console.log(`leak_events: ${b.reason}`);
+  assert.equal(blocks.length, 0, 'no false blocks from the leak filter');
+  console.log('\nAll intake checks passed: demo recorded exactly, deal landed, NO -> raise cap -> new deal works, 0 leak-filter blocks.');
 } finally {
   await cleanup();
   await closePool();

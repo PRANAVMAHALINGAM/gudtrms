@@ -184,6 +184,10 @@ export async function deleteConstraints(participantId: Uuid, kind: Constraint['k
   }
 }
 
+export async function deleteSoftPreference(participantId: Uuid, text: string): Promise<void> {
+  await query(`delete from constraints where participant_id = $1 and kind = 'other' and value->>'text' = $2`, [participantId, text]);
+}
+
 export async function addConstraint(participantId: Uuid, kind: 'must_keep_item' | 'other', value: object): Promise<void> {
   await query('insert into constraints (participant_id, kind, value) values ($1, $2, $3)', [
     participantId,

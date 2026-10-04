@@ -5,7 +5,7 @@
 
 import { onIntakeDone, runNegotiation } from '../conversation/negotiation.ts';
 import { chatEffort, llm, type ChatResult } from '../llm/index.ts';
-import { sendTo } from '../privacy/sendTo.ts';
+import { sendAgentReply, sendTo } from '../privacy/sendTo.ts';
 import type { Membership } from '../router/cases.ts';
 import { buildSystemPrompt } from './prompt.ts';
 import { latestAgreementText, loadState, recentTurns, setFlags } from './store.ts';
@@ -13,7 +13,8 @@ import { runTools, toolsFor } from './tools.ts';
 
 const SORRY_TROUBLE = "Sorry, I'm having trouble on my end. Give me a minute and try again.";
 const SORRY_REFUSED = "Sorry, I can't help with that one. Could you put it another way?";
-const NEGOTIATING = "I'm working on a deal right now. I'll text you as soon as there's something to look at.";
+const SAFE_AFTER_BLOCK = 'Sorry, let me put that differently. Could you say that again, or tell me what you\'d like to do next?';
+const NEGOTIATING ="I'm working on a deal right now. I'll text you as soon as there's something to look at.";
 
 /**
  * Models occasionally write a tool call into their visible text (`<invoke name="reply"><parameter ...>hi</parameter>`)
@@ -100,7 +101,29 @@ export async function handleAgentMessage(me: Membership, _text: string): Promise
       console.error(`[chat agent] follow-up call failed for ${me.id}:`, err instanceof Error ? err.message : err);
     }
   }
-  await sendTo(me.id, reply ?? SORRY_TROUBLE);
+  if (!reply) {
+    await sendTo(me.id, SORRY_TROUBLE);
+  } else if (!(await sendAgentReply(me.id, reply))) {
+    // The leak filter blocked the draft (and logged it). Rewrite once without specifics; if that's
+    // blocked too, send a safe line. The blocked draft is never sent or stored.
+    let sent = false;
+    try {
+      const name = s.me.display_name ?? 'them';
+      const ex = s.other?.display_name ?? 'their ex';
+      const retry = await llm().chat({
+        system:
+          `${buildSystemPrompt(s, today, agreement, false)}\n\nYour last draft can't be sent. Rewrite your reply without any ` +
+          `dollar amount or date unless ${name} said it to you themselves, and without anything about what ${ex} values, wants, or would accept.`,
+        turns,
+        effort: chatEffort(),
+      });
+      const text = retry.refused ? null : cleanReply(retry.text);
+      if (text) sent = await sendAgentReply(me.id, text);
+    } catch (err) {
+      console.error(`[chat agent] rewrite after a block failed for ${me.id}:`, err instanceof Error ? err.message : err);
+    }
+    if (!sent) await sendTo(me.id, SAFE_AFTER_BLOCK);
+  }
 
   // Act only after replying, so their "all set" lands before any negotiation messages.
   try {

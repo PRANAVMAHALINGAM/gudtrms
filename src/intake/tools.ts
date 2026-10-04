@@ -7,7 +7,7 @@ import { sendTo } from '../privacy/sendTo.ts';
 import type { ItemKind, Outcome } from '../shared/types.ts';
 import { formatMoney } from '../conversation/agreement.ts';
 import {
-  addConstraint, addItem, deleteConstraints, findItem, missingSteps, OUTCOMES_FOR, removeItem, setDeposit,
+  addConstraint, addItem, deleteConstraints, deleteSoftPreference, findItem, missingSteps, OUTCOMES_FOR, removeItem, setDeposit,
   setFeeAmount, setFlags, setIntakeDone, upsertSingleConstraint, upsertValue, type MyState,
 } from './store.ts';
 
@@ -93,6 +93,11 @@ const TOOLS: Record<string, LlmTool> = {
       "Something that matters to the person but isn't a number or a dealbreaker (e.g. 'no handoffs with them'). Short text. Private.",
     inputSchema: obj({ text: { type: 'string' } }),
   },
+  remove_soft_preference: {
+    name: 'remove_soft_preference',
+    description: 'Drop a soft preference the person no longer cares about (or cares about less). Pass its text or a few words from it.',
+    inputSchema: obj({ text: { type: 'string' } }),
+  },
   done_with_limits: {
     name: 'done_with_limits',
     description: 'The person has no more dealbreakers or preferences to add.',
@@ -105,10 +110,33 @@ const TOOLS: Record<string, LlmTool> = {
   },
   try_again: {
     name: 'try_again',
-    description: 'After the person changed something (a value, their cap, their window, a dealbreaker), look for a new deal.',
+    description: 'After the person changed something (a value, their cap, their window, a dealbreaker, a soft preference), look for a new deal.',
     inputSchema: obj({}),
   },
 };
+
+const STOP_WORDS = new Set(['the', 'and', 'with', 'them', 'want', 'really', 'dont', "don't", 'not', 'have', 'that', 'this',
+  'for', 'about', 'would', 'like', 'any', 'more', 'just', 'thing', 'matter', 'matters', 'care']);
+const words = (s: string) =>
+  new Set((s.toLowerCase().match(/[a-z0-9']+/g) ?? []).filter((w) => w.length > 1 && !STOP_WORDS.has(w)));
+
+/**
+ * Which saved soft preference the person means: exact text, then containment, then the single best word
+ * overlap ("the TV thing doesn't matter" -> "I'd really like the TV"). Undefined if none or ambiguous.
+ */
+export function matchSoftPreference(prefs: string[], query: string): string | undefined {
+  const q = query.trim().toLowerCase();
+  if (!q) return undefined;
+  const exact = prefs.find((p) => p.toLowerCase() === q);
+  if (exact) return exact;
+  const contains = prefs.filter((p) => p.toLowerCase().includes(q) || q.includes(p.toLowerCase()));
+  if (contains.length === 1) return contains[0];
+  const qw = words(q);
+  const scored = prefs.map((p) => ({ p, n: [...words(p)].filter((w) => qw.has(w)).length }));
+  const best = Math.max(0, ...scored.map((x) => x.n));
+  const top = scored.filter((x) => x.n === best);
+  return best > 0 && top.length === 1 ? top[0]!.p : undefined;
+}
 
 /** Which tools the agent gets depends on where the case is. */
 export function toolsFor(status: string): LlmTool[] {
@@ -116,9 +144,10 @@ export function toolsFor(status: string): LlmTool[] {
     status === 'intake'
       ? ['add_item', 'remove_item', 'done_listing_items', 'set_value', 'set_deposit', 'set_lease_break_fee',
          'set_move_out_window', 'set_max_payment', 'no_payment_cap', 'add_dealbreaker', 'remove_dealbreaker',
-         'add_soft_preference', 'done_with_limits', 'finish_intake']
+         'add_soft_preference', 'remove_soft_preference', 'done_with_limits', 'finish_intake']
       : status === 'needs_relaxation'
-        ? ['set_value', 'set_move_out_window', 'set_max_payment', 'no_payment_cap', 'remove_dealbreaker', 'try_again']
+        ? ['set_value', 'set_move_out_window', 'set_max_payment', 'no_payment_cap', 'remove_dealbreaker',
+           'remove_soft_preference', 'try_again']
         : [];
   return [...names.map((n) => TOOLS[n]!), TOOLS.reply!];
 }
@@ -288,6 +317,20 @@ export async function runTools(calls: LlmToolCall[], s: MyState): Promise<ToolOu
         await addConstraint(me.id, 'other', { text });
         s.myConstraints.push({ id: '', participant_id: me.id, kind: 'other', value: { text } });
         ok(`soft preference noted: ${text}`);
+        break;
+      }
+
+      case 'remove_soft_preference': {
+        const prefs = s.myConstraints.flatMap((c) => (c.kind === 'other' ? [c.value.text] : []));
+        const match = matchSoftPreference(prefs, String(input.text ?? ''));
+        if (!match) {
+          fail(prefs.length ? `no single match; their soft preferences are: ${prefs.map((p) => `"${p}"`).join(', ')}` : 'they have no soft preferences');
+          break;
+        }
+        await deleteSoftPreference(me.id, match);
+        s.myConstraints = s.myConstraints.filter((c) => !(c.kind === 'other' && c.value.text === match));
+        changed = true;
+        ok(`dropped soft preference: ${match}`);
         break;
       }
 

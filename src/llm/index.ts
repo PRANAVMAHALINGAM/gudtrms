@@ -24,7 +24,15 @@ export function llm(): LlmProvider {
       break;
     case 'fake':
       // Simulations and tests: no network, no cost, always the same answer.
-      provider = { name: 'fake', model: 'fake', chat: async () => ({ text: '', toolCalls: [{ name: 'reply', input: { text: '[agent] ok' } }], refused: false, model: 'fake' }) };
+      // With tools it replies '[agent] ok'; without tools (yes/no checks like the leak filter) it answers VERDICT: NO.
+      provider = {
+        name: 'fake',
+        model: 'fake',
+        chat: async (req) =>
+          req.tools?.length
+            ? { text: '', toolCalls: [{ name: 'reply', input: { text: '[agent] ok' } }], refused: false, model: 'fake' }
+            : { text: 'VERDICT: NO', toolCalls: [], refused: false, model: 'fake' },
+      };
       break;
     default:
       throw new Error(`LLM_PROVIDER=${name} isn't implemented yet. Supported: claude (and fake, for simulations). See src/llm/index.ts.`);
@@ -43,15 +51,16 @@ export function chatEffort(): LlmEffort {
  * person's private data?". Returns null if the answer wasn't a clear yes or no (or the provider
  * declined), so the caller decides which way to fail. The leak filter should fail closed.
  */
-export async function askYesNo(system: string, question: string): Promise<boolean | null> {
+export async function askYesNo(system: string, question: string, effort: LlmEffort = 'low'): Promise<boolean | null> {
   const result = await llm().chat({
     system: `${system}\n\nAnswer with exactly one word: YES or NO.`,
     turns: [{ role: 'user', text: question }],
-    effort: 'low',
-    maxTokens: 2000,
+    effort,
+    maxTokens: 4000,
   });
   if (result.refused) return null;
-  const word = result.text.trim().toUpperCase().replace(/[^A-Z]/g, '');
+  // The last YES or NO in the answer counts (so 'VERDICT: NO' works too).
+  const word = [...result.text.toUpperCase().matchAll(/\b(YES|NO)\b/g)].at(-1)?.[1];
   if (word === 'YES') return true;
   if (word === 'NO') return false;
   return null;

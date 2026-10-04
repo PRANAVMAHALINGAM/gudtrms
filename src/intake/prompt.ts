@@ -31,7 +31,7 @@ function stepInstruction(step: Step | undefined, ex: string): string {
       if (item.kind === 'lease_break_fee') {
         return `If they both move out, someone pays the ${formatMoney(item.amount_cents ?? 0)} lease-break fee. Ask how much someone would have to pay them for them to cover the whole fee (default: the fee itself). Record with set_value (${item.name}, pay).`;
       }
-      return `Ask what keeping the ${item.name} is worth to them in dollars. If they can't put a number on it, help: "would you rather have the ${item.name} or $200?". Record with set_value (keep).`;
+      return `Ask what keeping the ${item.name} is worth to them in dollars. If they can't put a number on it, help them think it through: what would it cost to replace, or would they rather have it or the cash? Don't suggest a specific dollar amount yourself. Record with set_value (keep).`;
     }
     case 'deposit':
       return `Ask how much of the security deposit they paid. Tell them this one number is shown to ${ex} to confirm, because it's a fact, not a preference. Record with set_deposit.`;
@@ -93,7 +93,7 @@ export function buildSystemPrompt(s: MyState, today: string, agreementText: stri
     case 'needs_relaxation':
       lines.push(
         'Stage: no deal fits yet. Your last messages in the thread explain what was asked (a relaxation question, or they said NO to an agreement and you asked what doesn\'t work).',
-        'Talk it through. If they agree to change something, record it with the tool (set_max_payment, set_move_out_window, remove_dealbreaker, set_value), then call try_again. If nothing changes, a new search gives the same result, so say so kindly. It is fine for them to say no; never pressure.',
+        'Talk it through. If they agree to change something, record it with the tool (set_max_payment, set_move_out_window, remove_dealbreaker, remove_soft_preference, set_value), then call try_again. If nothing changes, a new search gives the same result, so say so kindly. It is fine for them to say no; never pressure.',
       );
       break;
     case 'awaiting_confirmation':

@@ -22,7 +22,8 @@
     "llm:check": "tsx --env-file-if-exists=.env src/llm/check.ts",
     "db:migrate": "tsx --env-file-if-exists=.env db/migrate.ts",
     "sim:intake": "tsx --env-file-if-exists=.env db/intake-sim.ts",
-    "advocate:check": "tsx --env-file-if-exists=.env src/engine/agent-check.ts"
+    "advocate:check": "tsx --env-file-if-exists=.env src/engine/agent-check.ts",
+    "leak:check": "tsx --env-file-if-exists=.env src/privacy/leak-check.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
