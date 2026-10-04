@@ -9,12 +9,15 @@ test('keywords match the bare word, any case, with edge punctuation', () => {
   assert.equal(keywordOf('STOP.'), 'stop');
   assert.equal(keywordOf('Yes!'), 'yes');
   assert.equal(keywordOf('y'), 'yes');
+  assert.equal(keywordOf('No.'), 'no');
+  assert.equal(keywordOf('nope'), 'no');
 });
 
 test('a keyword inside a sentence is not a keyword', () => {
   assert.equal(keywordOf('yes please'), null);
   assert.equal(keywordOf("don't stop"), null);
   assert.equal(keywordOf('start over'), null);
+  assert.equal(keywordOf('no way, the couch is mine'), null);
   assert.equal(keywordOf(''), null);
 });
 

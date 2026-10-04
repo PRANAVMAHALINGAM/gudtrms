@@ -3,7 +3,7 @@
 
 import { normalizePhone } from '../messaging/phone.ts';
 
-export type Keyword = 'start' | 'join' | 'stop' | 'yes';
+export type Keyword = 'start' | 'join' | 'stop' | 'yes' | 'no';
 
 /**
  * Case codes are 4 characters from an alphabet without look-alikes (no 0/O, 1/I/L),
@@ -30,6 +30,11 @@ export function keywordOf(text: string): Keyword | null {
     case 'yes':
     case 'y':
       return 'yes';
+    case 'no':
+    case 'n':
+    case 'nope':
+    case 'nah':
+      return 'no';
     default:
       return null;
   }

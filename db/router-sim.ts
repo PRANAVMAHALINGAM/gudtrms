@@ -134,6 +134,31 @@ try {
   out = await say(lee, (await caseOf(pat)).code);
   expectTo(out, pat, 'Lee joined');
 
+  console.log('\n=== 5. NO to the agreement: back to the table');
+  const drew = h(10, 'Drew');
+  const kai = h(11, 'Kai');
+  await say(drew, 'start');
+  await say(drew, 'Drew');
+  await say(drew, 'Kai 555 020 0011');
+  await say(kai, 'JOIN');
+  const c5 = await caseOf(drew);
+  const [p5] = await query<{ id: string }>(
+    `insert into proposals (case_id, round, allocation, transfer, move_out_date, status)
+     values ($1, 1, '{}', '{}', '2026-11-30', 'accepted') returning id`,
+    [c5.id],
+  );
+  await query(`insert into agreements (case_id, proposal_id, text) values ($1, $2, 'test agreement')`, [c5.id, p5!.id]);
+  await query(`update cases set status = 'awaiting_confirmation' where id = $1`, [c5.id]);
+  expectTo(await say(kai, 'yes'), kai, 'Waiting on the other person');
+  out = await say(drew, 'no');
+  expectTo(out, drew, "What doesn't work for you?");
+  expectTo(out, kai, "didn't confirm yet");
+  assert.ok(!out.some((m) => m.to === kai && m.text.includes('Drew')), 'the other side never hears why');
+  assert.equal((await caseOf(drew)).status, 'needs_relaxation');
+  const [superseded] = await query<{ status: string }>('select status from proposals where id = $1', [p5!.id]);
+  assert.equal(superseded!.status, 'superseded');
+  expectTo(await say(kai, 'yes'), kai, 'intake'); // no agreement out right now, so YES is just chat
+
   console.log('\nAll router checks passed.');
 } finally {
   await cleanup();

@@ -5,11 +5,12 @@
 //   start          no open case: open one, ask A's name, then the ex's name + number, send the one invite
 //   JOIN / code    invited (or has the code) and not joined yet: join, case -> intake
 //   YES            awaiting_confirmation and the agreement was sent: confirm
+//   NO             same state: back to the table (case -> needs_relaxation, agent asks what doesn't work)
 //   anything else  that person's agent (intake / relaxation)
 //
 // Never log message text (privacy rule 6).
 
-import { confirmAgreement } from '../conversation/confirm.ts';
+import { confirmAgreement, declineAgreement } from '../conversation/confirm.ts';
 import { handleAgentMessage, startIntake } from '../intake/index.ts';
 import { sendToHandle } from '../messaging/index.ts';
 import { sendTo } from '../privacy/sendTo.ts';
@@ -32,6 +33,7 @@ export async function route(handle: string, text: string): Promise<void> {
   if (me.joined_at === null) return invited(me, handle, text, keyword);
   if (me.role === 'A' && me.status === 'inviting') return setUpCase(me, text);
   if (keyword === 'yes' && me.status === 'awaiting_confirmation' && (await confirmAgreement(me))) return;
+  if (keyword === 'no' && me.status === 'awaiting_confirmation' && (await declineAgreement(me))) return;
   return handleAgentMessage(me, text);
 }
 

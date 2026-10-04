@@ -50,7 +50,7 @@
 | Database | **Neon** (hosted Postgres) | Plain Postgres, no learning curve |
 | Agents | Advocates + mediator are **plain modules in our backend**, no agent framework | Effort goes into negotiation and privacy |
 | Payments | **None** | Not core |
-| LLM | **TBD** | See open questions |
+| LLM | **Claude** via the Anthropic SDK (default `claude-sonnet-5-5`, low effort), behind a small provider interface in `src/llm/` | Grok or Gemini can be added later as one file in `src/llm/` plus `LLM_PROVIDER` in `.env`; nothing else changes |
 
 **Rejected:** WhatsApp, Telegram as the main channel, and SMS (see "Why iMessage" below), Fetch.ai (whole workflow must live in ASI:One, too much overhead), Relay (users must install an iOS app), OpenClaw (not needed, security baggage), SpacetimeDB (new paradigm, real-time not core).
 
@@ -117,7 +117,7 @@ All conversation happens in **1:1 DMs** with the gudtrms number. No group chat b
    - **Hard constraints:** the most you could pay your ex in total (buyout plus deposit payback), and dealbreakers ("Biscuit has to live with me").
 5. **Negotiation:** mediator proposes, advocates accept/reject, up to the round cap. No humans involved unless stuck.
 6. **Stuck:** each person's agent privately asks them to relax something: "Nothing fits yet. Would you go up to $700? Totally fine to say no, nobody will know you were asked."
-7. **Agreement:** both people get the same final text and reply `YES` to confirm. Once both confirm, the case closes. **`YES` only counts as a confirmation after the agreement has been sent to that person.** Any other "yes" (answering the agent during intake or relaxation) is just an answer to the agent's question.
+7. **Agreement:** both people get the same final text and reply `YES` to confirm. Once both confirm, the case closes. **`YES` only counts as a confirmation after the agreement has been sent to that person.** Any other "yes" (answering the agent during intake or relaxation) is just an answer to the agent's question. A bare `NO` to the agreement sends the case back to the table (section 10): that person is asked privately what doesn't work, and the other is told only that it wasn't confirmed yet.
 
 **Example agreement** (matches the demo scenario in section 8)
 ```
@@ -183,6 +183,7 @@ Reply YES to confirm.
 | `JOIN` / case code | sender was invited (or has the code) and hasn't joined yet | goes to their agent |
 | `STOP` | **always** (safety). Removes them from any case and adds them to `opt_outs`. The other person is told only that the case ended | — |
 | `YES` | case is `awaiting_confirmation` **and** the agreement has been sent to this person | it's just an answer to whatever their agent asked |
+| `NO` | same as `YES` | it's just an answer to whatever their agent asked |
 
 Everything else goes to that person's intake agent or relaxation prompt.
 
@@ -369,13 +370,13 @@ A web page on the demo laptop that shows judges the advocates negotiating. The e
 
 ## 10. Open questions
 
-- [ ] Which LLM provider and model?
+- [x] Which LLM provider and model? **Decided:** Claude Sonnet 5.5 (`claude-sonnet-5-5`) at low effort (`LLM_MODEL` / `LLM_EFFORT` override it). Swappable to Grok or Gemini via `src/llm/`.
 - [ ] Photon setup: project created at app.photon.codes, iMessage turned on, project ID + secret in `.env`? Are all demo phones iPhones?
 - [ ] Photon booth: if our iMessage line texts an Android number, does it fall back to SMS/RCS, and does that need carrier (10DLC) registration? If yes and no, we get Android for free.
 - [ ] Photon booth: on the shared-pool line, does `im.space.create` to a brand-new number work on the free plan?
 - [ ] Photon and Neon prize requirements (MHacks prizes page, behind login)
 - [ ] Does the item list need both people to approve it before valuations start?
-- [ ] What happens if someone replies `NO` (or anything other than `YES`) to the agreement? Back to relaxation, or the case ends?
+- [x] What happens if someone replies `NO` to the agreement? **Decided: back to the table.** The deal is superseded and the case goes to `needs_relaxation`. The person who said NO is asked privately what doesn't work; the other person is told only "They didn't confirm yet". Their agent updates their values or limits, then `negotiate()` runs again and a new agreement needs two new YESes. Anything else (not a bare YES or NO) is just chat with their agent.
 
 ## 11. Team and ownership
 
