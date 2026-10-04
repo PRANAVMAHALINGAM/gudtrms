@@ -12,6 +12,14 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-04 · Shruti (pitch README)
+- Rewrote `README.md` as the pitch for the "judged by an LLM" track: visual hook (pitch poster 2), the problem in US stats (from poster 1, sources kept), what it does, a "typical LLM mediator vs gudtrms" table, the Alex & Sam rounds, a Mermaid diagram, run-in-60-seconds steps, honest limits, roadmap, team. The old setup, Docker, layout and known-limitation content is kept (condensed) at the bottom or in the limits section.
+- Every claim is checkable in the repo (59 tests pass, rounds match AGENTS.md section 8).
+- **Cost claim measured:** one full `sim:intake` run (real Claude, fake handles, includes a NO and a re-negotiation) cost **$0.2987**: chat 21 calls $0.2161, leak filter 19 calls $0.0572, advocates 6 calls $0.0254. So "well under $1 per case" holds; the README says about $0.30. It's one run, so re-measure if the prompts or model change. (The sim deletes its rows at the end, so I ran a temporary copy that printed `llm_usage` first, then deleted the copy. Nothing in the repo changed.)
+- README hook is now a 1920x1080 screenshot of the judge view (mock mode, both sides redacted, step 11 "The agreement goes out to both"). Pitch poster 2 moved down to "How it works". The shot was taken with headless Chrome against `npm run judge`; to retake it, open the judge view, leave X-ray off and click "Step 11".
+- Files: `docs/screenshots/judge-view.png`
+- Files: `README.md`
+
 ### 2026-10-04 · Pranav (pitch posters)
 - Two Letter-size pitch posters in the landing page's look, as HTML (the source), PDF (print it) and PNG (preview):
   - **Pitch poster 1**: the problem in US numbers. 26M Americans live in an unmarried-couple home (Census 2020), 59% of adults 18–44 have cohabited vs 50% ever married (Pew 2019), 49% of cohabitations end within 5 years vs 20% of first marriages (CDC/NCHS, 2002 data), divorce mediation costs $3k–9k, 29% of pet owners have split while sharing a pet (MetLife), no automatic property rights for unmarried partners in most states. Each fact has its source on the poster.
