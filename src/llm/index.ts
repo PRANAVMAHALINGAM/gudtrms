@@ -11,6 +11,7 @@ import { claudeProvider } from './claude.ts';
 import type { LlmEffort, LlmProvider } from './types.ts';
 
 export type { ChatRequest, ChatResult, LlmEffort, LlmProvider, LlmTool, LlmToolCall, LlmTurn } from './types.ts';
+export { withUsage, type UsagePurpose } from './usage.ts';
 
 let provider: LlmProvider | undefined;
 

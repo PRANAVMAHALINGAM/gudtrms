@@ -20,6 +20,8 @@ export interface Snapshot {
   leaks: { id: string; target_participant_id: string | null; reason: string; created_at: string }[];
   /** Oldest first. More than one only if someone replied NO to an earlier one (its proposal is then `superseded`). */
   agreements: { id: string; proposal_id: string; text: string; a_confirmed: boolean; b_confirmed: boolean; created_at: string }[];
+  /** Claude calls made for this case, per purpose (llm_usage). Null when there's no llm_usage table yet. */
+  usage: { purpose: string; calls: number; tokens: number; cost_usd: number | null }[] | null;
 }
 
 let sql: ReturnType<typeof neon> | undefined;
@@ -55,7 +57,7 @@ export async function snapshot(code?: string): Promise<Snapshot> {
   const theCase = found?.[0];
   if (!theCase) {
     return { source: 'live', case: null, participants: [], items: [], valuations: [], constraints: [], deposits: [],
-      proposals: [], decisions: [], notes: [], leaks: [], agreements: [] };
+      proposals: [], decisions: [], notes: [], leaks: [], agreements: [], usage: null };
   }
 
   const id = theCase.id;
@@ -79,6 +81,19 @@ export async function snapshot(code?: string): Promise<Snapshot> {
   ], { readOnly: true }) as unknown[][];
 
   const [participants, items, valuations, constraints, deposits, proposals, decisions, notes, leaks, agreements] = results;
+
+  // Separate from the rest, so a database without llm_usage (not migrated yet) still shows the negotiation.
+  let usage: Snapshot['usage'] = null;
+  try {
+    const [rows] = (await q.transaction([
+      q.query(`select purpose, count(*)::int as calls,
+                 sum(input_tokens + output_tokens + cache_write_tokens + cache_read_tokens)::int as tokens, sum(cost_usd) as cost_usd
+               from llm_usage where case_id = $1 group by purpose`, [id]),
+    ], { readOnly: true })) as [{ purpose: string; calls: number; tokens: number; cost_usd: number | string | null }[]];
+    usage = rows.map((r) => ({ ...r, cost_usd: r.cost_usd === null ? null : Number(r.cost_usd) }));
+  } catch {
+    usage = null;
+  }
   const json = (v: unknown) => (typeof v === 'string' ? JSON.parse(v) : v);
   return {
     source: 'live',
@@ -95,5 +110,6 @@ export async function snapshot(code?: string): Promise<Snapshot> {
     notes: notes as Snapshot['notes'],
     leaks: leaks as Snapshot['leaks'],
     agreements: agreements as Snapshot['agreements'],
+    usage,
   };
 }

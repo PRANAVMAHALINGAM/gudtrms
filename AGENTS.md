@@ -336,6 +336,11 @@ chat_messages (id uuid pk, participant_id fk, role text, text text, created_at) 
 chat_state   (participant_id pk fk, flags jsonb)                                 -- PRIVATE
              -- chat agent progress: items_done, cap_answered, limits_answered, changed_since_ask
              -- (both in db/chat-schema.sql; `npm run db:migrate` adds them to an existing database)
+llm_usage    (id uuid pk, case_id fk null, purpose text, model text, input_tokens int, output_tokens int,
+              cache_write_tokens int, cache_read_tokens int, cost_usd float, created_at)
+             -- one row per Claude call. purpose: chat | leak_check | advocate | other. NOT private: no text.
+             -- written by src/llm/usage.ts; `npm run usage -- <code>` and the judge view's cost card read it
+             -- (db/usage-schema.sql; `npm run db:migrate` adds it)
 ```
 
 ---

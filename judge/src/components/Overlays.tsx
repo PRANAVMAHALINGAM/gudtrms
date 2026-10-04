@@ -141,17 +141,53 @@ export function AgreementOverlay({ s, view }: { s: Snapshot; view: View }) {
       <AnimatePresence>
         {view.split && (
           <motion.div key="parted" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 1.1 } }} exit={{ opacity: 0 }}
-            style={{ position: 'absolute', left: 0, right: 0, top: 300, zIndex: 30, display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
+            style={{ position: 'absolute', left: 0, right: 0, top: 300, zIndex: 30, display: 'grid', placeItems: 'center', gap: 'var(--s3)', pointerEvents: 'none' }}>
             <motion.div initial={{ scale: 0.6, rotate: -4 }} animate={{ scale: 1, rotate: -2, transition: { delay: 1.1, type: 'spring', stiffness: 260, damping: 16 } }}
               className="card" style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 58, lineHeight: 1.02, textAlign: 'center', letterSpacing: '-0.03em', padding: 'var(--s3) var(--s4)', boxShadow: 'var(--shadow-lg)' }}>
               Parted on<br />
               {/* Same treatment as the header wordmark */}
               <span style={{ letterSpacing: '-0.035em' }}>gud<span style={{ fontStyle: 'italic', fontWeight: 400, color: 'var(--accent)' }}>trms</span>.</span>
             </motion.div>
+            {!!s.usage?.length && <CostCard usage={s.usage} />}
           </motion.div>
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+/* ---------- What the case cost in Claude calls (live only: mock never calls Claude) ---------- */
+
+const PURPOSES: [string, string][] = [['chat', 'Chat agents'], ['leak_check', 'Leak filter'], ['advocate', 'Advocates'], ['other', 'Other']];
+const dollars = (n: number) => `$${n.toFixed(n >= 0.1 ? 2 : 3)}`;
+
+function CostCard({ usage }: { usage: NonNullable<Snapshot['usage']> }) {
+  const total = usage.reduce((t, u) => t + (u.cost_usd ?? 0), 0);
+  const calls = usage.reduce((t, u) => t + u.calls, 0);
+  const tokens = usage.reduce((t, u) => t + u.tokens, 0);
+  const unpriced = usage.some((u) => u.cost_usd === null);
+  return (
+    <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0, transition: { delay: 1.7, duration: 0.4 } }}
+      aria-label="What this case cost in Claude calls" className="card"
+      style={{ width: 440, padding: '16px 22px', rotate: '1deg', boxShadow: 'var(--shadow-md)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span className="eyebrow" style={{ fontSize: 13 }}>What this case cost</span>
+        <span className="serif num" style={{ fontSize: 34, fontWeight: 600, color: 'var(--accent)' }}>{dollars(total)}{unpriced ? '+' : ''}</span>
+      </div>
+      <div className="num" style={{ fontSize: 15, color: 'var(--ink-3)', marginBottom: 8 }}>
+        {calls} Claude calls · {tokens.toLocaleString('en-US')} tokens
+      </div>
+      {PURPOSES.map(([key, label]) => {
+        const u = usage.find((x) => x.purpose === key);
+        if (!u) return null;
+        return (
+          <div key={key} className="num" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 17, fontWeight: 600, padding: '3px 0', borderTop: '1px solid var(--line)' }}>
+            <span>{label} <span style={{ color: 'var(--ink-3)', fontWeight: 500 }}>· {u.calls} calls</span></span>
+            <span>{u.cost_usd === null ? 'no price' : dollars(u.cost_usd)}</span>
+          </div>
+        );
+      })}
+    </motion.div>
   );
 }
 

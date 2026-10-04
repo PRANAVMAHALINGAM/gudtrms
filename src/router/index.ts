@@ -13,6 +13,7 @@
 import { confirmAgreement, declineAgreement } from '../conversation/confirm.ts';
 import { query } from '../db/client.ts';
 import { handleAgentMessage, startIntake } from '../intake/index.ts';
+import { withUsage } from '../llm/index.ts';
 import { sendToHandle } from '../messaging/index.ts';
 import { sendTo } from '../privacy/sendTo.ts';
 import type { Uuid } from '../shared/types.ts';
@@ -33,11 +34,14 @@ export async function route(handle: string, text: string): Promise<void> {
   // Their own thread, read only by their own chat agent.
   await query(`insert into chat_messages (participant_id, role, text) values ($1, 'user', $2)`, [me.id, text]);
 
-  if (me.joined_at === null) return invited(me, handle, text, keyword);
-  if (me.role === 'A' && me.status === 'inviting') return setUpCase(me, text);
-  if (keyword === 'yes' && me.status === 'awaiting_confirmation' && (await confirmAgreement(me))) return;
-  if (keyword === 'no' && me.status === 'awaiting_confirmation' && (await declineAgreement(me))) return;
-  return handleAgentMessage(me, text);
+  // Every Claude call from here on is billed to this case (src/llm/usage.ts).
+  return withUsage({ caseId: me.case_id, purpose: 'chat' }, async () => {
+    if (me.joined_at === null) return invited(me, handle, text, keyword);
+    if (me.role === 'A' && me.status === 'inviting') return setUpCase(me, text);
+    if (keyword === 'yes' && me.status === 'awaiting_confirmation' && (await confirmAgreement(me))) return;
+    if (keyword === 'no' && me.status === 'awaiting_confirmation' && (await declineAgreement(me))) return;
+    return handleAgentMessage(me, text);
+  });
 }
 
 async function stop(handle: string): Promise<void> {

@@ -3,6 +3,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import type { ChatRequest, ChatResult, LlmProvider, LlmToolCall } from './types.ts';
+import { recordUsage, type UsageLike } from './usage.ts';
 
 // Team decision: Sonnet 5.5 at low effort (fast and cheap enough for iMessage chat). LLM_MODEL overrides it.
 export const CLAUDE_DEFAULT_MODEL = 'claude-sonnet-5-5';
@@ -36,6 +37,8 @@ export function claudeProvider(model: string = CLAUDE_DEFAULT_MODEL): LlmProvide
             }
           : {}),
       });
+      // Tokens and cost, tagged with the case this call is for (src/llm/usage.ts). Never throws.
+      await recordUsage(response.model, response.usage as UsageLike);
 
       if (response.stop_reason === 'refusal') {
         return { text: '', toolCalls: [], refused: true, model: response.model };

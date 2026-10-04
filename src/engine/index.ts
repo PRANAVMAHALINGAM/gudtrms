@@ -19,6 +19,7 @@
 
 import { setTimeout as sleep } from 'node:timers/promises';
 import { query } from '../db/client.ts';
+import { withUsage } from '../llm/index.ts';
 import type { Negotiate, NegotiationResult, RelaxAsk } from '../shared/contract.ts';
 import type {
   CaseStatus, Constraint, Decision, DepositContribution, IsoDate, Item, Participant, Role, Uuid, Valuation,
@@ -34,7 +35,10 @@ export const ROUND_CAP = 5;
 /** When the windows don't overlap, how far to ask someone to stretch. Fixed, so it reveals nothing. */
 const WINDOW_STRETCH_DAYS = 14;
 
-export const negotiate: Negotiate = async (caseId) => {
+// Every advocate call (one Claude call per person per round) is billed to this case (src/llm/usage.ts).
+export const negotiate: Negotiate = (caseId) => withUsage({ caseId, purpose: 'advocate' }, () => negotiateCase(caseId));
+
+const negotiateCase = async (caseId: Uuid): Promise<NegotiationResult> => {
   const participants = await query<Participant>('select * from participants where case_id = $1', [caseId]);
   const a = participants.find((p) => p.role === 'A');
   const b = participants.find((p) => p.role === 'B');

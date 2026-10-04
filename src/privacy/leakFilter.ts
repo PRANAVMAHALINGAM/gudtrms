@@ -8,7 +8,7 @@
 //   3. Every block goes to leak_events with a reason. Never the blocked text, never the matched value.
 
 import { query } from '../db/client.ts';
-import { llm } from '../llm/index.ts';
+import { llm, withUsage } from '../llm/index.ts';
 import type { Constraint, Proposal, Uuid } from '../shared/types.ts';
 import { addText, emptySets, findLeak, monthDay, type NumberSets } from './leaks.ts';
 
@@ -125,12 +125,12 @@ async function llmSaysLeak(r: Recipient, exName: string, text: string): Promise<
   try {
     const { system, question } = await buildCheckerPrompt(r, exName, text);
     // A sentence or two of reasoning before the verdict makes it far more accurate than a bare YES/NO.
-    const result = await llm().chat({
+    const result = await withUsage({ caseId: r.case_id, purpose: 'leak_check' }, () => llm().chat({
       system: `${system}\n\nThink it through in one or two sentences, then end with a final line: VERDICT: YES (it leaks) or VERDICT: NO.`,
       turns: [{ role: 'user', text: question }],
       effort: process.env.LEAK_LLM_EFFORT === 'low' ? 'low' : 'medium',
       maxTokens: 4000,
-    });
+    }));
     const verdicts = [...result.text.matchAll(/VERDICT:\s*(YES|NO)\b/gi)];
     const last = verdicts.at(-1)?.[1]?.toUpperCase();
     return result.refused || last !== 'NO'; // yes, refused, or unclear: block (fail closed)

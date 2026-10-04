@@ -16,7 +16,7 @@ import { buzz, rip, setMuted, thud, tick, unlockAudio } from './sound.ts';
 const params = new URLSearchParams(location.search);
 const EMPTY: Snapshot = {
   source: 'live', case: null, participants: [], items: [], valuations: [], constraints: [], deposits: [],
-  proposals: [], decisions: [], notes: [], leaks: [], agreements: [],
+  proposals: [], decisions: [], notes: [], leaks: [], agreements: [], usage: null,
 };
 
 function readMode(): Mode {

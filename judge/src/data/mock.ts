@@ -29,7 +29,7 @@ export function mockSnapshot(valuations: Valuation[] = demoValuations, rogue = t
     valuations,
     constraints: demoConstraints,
     deposits: demoDeposits.map((d) => ({ participant_id: d.participant_id, amount_cents: d.amount_cents })),
-    proposals: [], decisions: [], notes: [], leaks: [], agreements: [],
+    proposals: [], decisions: [], notes: [], leaks: [], agreements: [], usage: null,
   };
 
   let round = 0;

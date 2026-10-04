@@ -20,7 +20,7 @@ captureOutbound((to, text) => {
   console.log(`\n-> ${nameOf[to] ?? to}:\n${text}`);
 });
 
-for (const table of ['agreements', 'leak_events', 'advocate_notes', 'proposals']) {
+for (const table of ['agreements', 'leak_events', 'advocate_notes', 'proposals', 'llm_usage']) {
   await query(`delete from ${table} where case_id = $1`, [caseId]);
 }
 await query(`update cases set status = 'intake' where id = $1`, [caseId]);

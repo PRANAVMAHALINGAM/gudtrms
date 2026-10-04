@@ -5,5 +5,6 @@ import { readFile } from 'node:fs/promises';
 import { closePool, getPool } from '../src/db/client.ts';
 
 await getPool().query(await readFile(new URL('./chat-schema.sql', import.meta.url), 'utf8'));
+await getPool().query(await readFile(new URL('./usage-schema.sql', import.meta.url), 'utf8'));
 await closePool();
-console.log('Migrate done: chat_messages, chat_state.');
+console.log('Migrate done: chat_messages, chat_state, llm_usage.');
