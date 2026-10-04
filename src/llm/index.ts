@@ -22,8 +22,12 @@ export function llm(): LlmProvider {
     case 'claude':
       provider = claudeProvider(model);
       break;
+    case 'fake':
+      // Simulations and tests: no network, no cost, always the same answer.
+      provider = { name: 'fake', model: 'fake', chat: async () => ({ text: '', toolCalls: [{ name: 'reply', input: { text: '[agent] ok' } }], refused: false, model: 'fake' }) };
+      break;
     default:
-      throw new Error(`LLM_PROVIDER=${name} isn't implemented yet. Supported: claude. See src/llm/index.ts.`);
+      throw new Error(`LLM_PROVIDER=${name} isn't implemented yet. Supported: claude (and fake, for simulations). See src/llm/index.ts.`);
   }
   return provider;
 }

@@ -3,6 +3,9 @@
 // Prints the conversation and fails loudly if a reply isn't what AGENTS.md sections 5-6 expect.
 
 import assert from 'node:assert/strict';
+
+// The chat agent's replies come from a fake LLM here: free, offline, and always '[agent] ok'.
+process.env.LLM_PROVIDER = 'fake';
 import { closePool, query } from '../src/db/client.ts';
 import { captureOutbound } from '../src/messaging/index.ts';
 import { route } from '../src/router/index.ts';
@@ -69,7 +72,7 @@ try {
   expectTo(out, alex, 'Sam joined');
   expectTo(out, sam, 'stays private');
   assert.equal((await caseOf(alex)).status, 'intake');
-  expectTo(await say(sam, 'yes'), sam, 'intake'); // no agreement yet, so YES goes to the agent
+  expectTo(await say(sam, 'yes'), sam, '[agent]'); // no agreement yet, so YES goes to the agent
 
   // Pretend negotiate() agreed and the agreement writer sent the text to both.
   const c1 = await caseOf(alex);
@@ -83,7 +86,7 @@ try {
     proposal!.id,
   ]);
   await query(`update cases set status = 'awaiting_confirmation' where id = $1`, [c1.id]);
-  expectTo(await say(alex, 'what happens now'), alex, 'Reply YES');
+  expectTo(await say(alex, 'what happens now'), alex, '[agent]');
   expectTo(await say(alex, 'Yes!'), alex, 'Waiting on the other person');
   out = await say(sam, 'yes');
   expectTo(out, alex, 'both confirmed');
@@ -157,7 +160,7 @@ try {
   assert.equal((await caseOf(drew)).status, 'needs_relaxation');
   const [superseded] = await query<{ status: string }>('select status from proposals where id = $1', [p5!.id]);
   assert.equal(superseded!.status, 'superseded');
-  expectTo(await say(kai, 'yes'), kai, 'intake'); // no agreement out right now, so YES is just chat
+  expectTo(await say(kai, 'yes'), kai, '[agent]'); // no agreement out right now, so YES is just chat
 
   console.log('\nAll router checks passed.');
 } finally {

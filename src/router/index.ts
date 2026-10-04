@@ -11,6 +11,7 @@
 // Never log message text (privacy rule 6).
 
 import { confirmAgreement, declineAgreement } from '../conversation/confirm.ts';
+import { query } from '../db/client.ts';
 import { handleAgentMessage, startIntake } from '../intake/index.ts';
 import { sendToHandle } from '../messaging/index.ts';
 import { sendTo } from '../privacy/sendTo.ts';
@@ -29,6 +30,8 @@ export async function route(handle: string, text: string): Promise<void> {
 
   const [me] = await openMemberships(handle);
   if (!me) return noOpenCase(handle, text, keyword);
+  // Their own thread, read only by their own chat agent.
+  await query(`insert into chat_messages (participant_id, role, text) values ($1, 'user', $2)`, [me.id, text]);
 
   if (me.joined_at === null) return invited(me, handle, text, keyword);
   if (me.role === 'A' && me.status === 'inviting') return setUpCase(me, text);

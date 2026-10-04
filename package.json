@@ -19,7 +19,9 @@
     "sim:router": "tsx --env-file-if-exists=.env db/router-sim.ts",
     "demo:agreement": "tsx --env-file-if-exists=.env db/agreement-demo.ts",
     "demo:phones": "tsx --env-file-if-exists=.env db/phone-demo.ts",
-    "llm:check": "tsx --env-file-if-exists=.env src/llm/check.ts"
+    "llm:check": "tsx --env-file-if-exists=.env src/llm/check.ts",
+    "db:migrate": "tsx --env-file-if-exists=.env db/migrate.ts",
+    "sim:intake": "tsx --env-file-if-exists=.env db/intake-sim.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

@@ -11,6 +11,7 @@ const schema = await readFile(new URL('./schema.sql', import.meta.url), 'utf8');
 const db = getPool();
 
 await db.query(schema);
+await db.query(await readFile(new URL('./chat-schema.sql', import.meta.url), 'utf8'));
 
 await db.query('insert into cases (id, code, status, created_at) values ($1, $2, $3, $4)',
   [demoCase.id, demoCase.code, demoCase.status, demoCase.created_at]);

@@ -11,4 +11,6 @@ export const sendTo: SendTo = async (participantId, text) => {
   const [row] = await query<{ handle: string }>('select handle from participants where id = $1', [participantId]);
   if (!row) throw new Error(`sendTo: no participant ${participantId}`);
   await sendToHandle(row.handle, text);
+  // Their own thread, so their chat agent sees what they were told (private, never logged to the console).
+  await query(`insert into chat_messages (participant_id, role, text) values ($1, 'assistant', $2)`, [participantId, text]);
 };

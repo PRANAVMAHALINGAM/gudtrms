@@ -12,6 +12,17 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-04 00:30 ET · Pranav
+- **Chat agent is in** (`src/intake/`, per Shruti's section 6 spec), replacing the stub. One LLM context per person, built only from that person's rows + shared facts. Handles intake, soft preferences (`constraints` kind `other`), replies to relaxation asks **and** to a NO, and questions about a sent agreement.
+  - Code-led: `missingSteps()` decides what to ask next (items → values per outcome → deposit → window → cap → dealbreakers/preferences); the LLM words it and records answers through validated tools (`tools.ts`). It can only change data through tools, and only its own person's rows plus the shared item list.
+  - Relaxation / after a NO: change tools (value, cap, window, drop a dealbreaker) **update the existing row**, then `try_again` runs `runNegotiation()`. It refuses to re-run if nothing changed (same inputs = same deal).
+  - Shared facts reach the other person only as fixed text: deposit contribution, lease-break fee, and an item added after they finished (which also reopens their intake).
+  - `cleanReply()` strips tool-call markup and notes-to-self the model sometimes writes into its text; both leaks showed up in testing and are now covered by tests.
+- **Tested with real Claude:** `npm run sim:intake` plays Alex and Sam with the section 8 numbers in plain language. All values, deposit, windows, cap and dealbreaker land exactly; negotiation runs by itself and sends the $640 / $1,390 agreement; then Alex says NO, raises the cap to $1,700, and the new agreement is the $865 / $1,615 one. 29 turns, median reply 3.4s, nothing tag-like reached anyone. Costs a few cents per run.
+- New PRIVATE tables `chat_messages` (each person's own thread) and `chat_state` (progress flags) in `db/chat-schema.sql`. **Shruti:** `npm run db:migrate` adds them to your branch without touching data; `db:reset` now runs that file too (I added one line to `db/reset.ts` and the two tables to the drop list in `db/schema.sql`). The judge view must not read them.
+- `sendTo` and the router now record every message in that person's thread. `LLM_PROVIDER=fake` (always "[agent] ok") keeps `npm run sim:router` free and repeatable.
+- Files: `src/intake/{index,store,tools,prompt}.ts`, `index.test.ts`, `README.md`, `src/privacy/sendTo.ts`, `src/router/index.ts`, `src/llm/index.ts`, `db/chat-schema.sql`, `db/migrate.ts`, `db/intake-sim.ts`, `db/router-sim.ts`, `db/schema.sql`, `db/reset.ts`, `package.json`, `AGENTS.md` (sections 7, 11)
+
 ### 2026-10-03 23:05 ET · Shruti
 - **Pets can be split 50/50 (spec only, build after the ~3 AM full run).** Fifth pet outcome: week on, week off. Each person values it (new valuation outcome `split`), and the allocation marks it `{ to: null, weekends: null, split: true }`.
 - Rules: 50/50 does **not** satisfy a "lives with me" dealbreaker. A pet's fair share uses the person's highest pet value (normally full-time). Other arrangements people describe ("70/30") get mapped to the closest of the five by the chat agent; the mediator only knows these.

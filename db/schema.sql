@@ -2,7 +2,7 @@
 -- `npm run db:reset` runs this file and then loads the demo seed.
 -- WARNING: it drops every table first. Point DATABASE_URL at your own Neon branch.
 
-drop table if exists advocate_notes, leak_events, agreements, decisions, proposals,
+drop table if exists chat_state, chat_messages, advocate_notes, leak_events, agreements, decisions, proposals,
   constraints, deposit_contributions, valuations, items, opt_outs, participants, cases cascade;
 
 create table cases (

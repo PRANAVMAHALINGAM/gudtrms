@@ -330,6 +330,11 @@ advocate_notes (id uuid pk, case_id fk, proposal_id fk, participant_id fk, note 
              -- PRIVATE. Advocate's one-line reasoning per decision. Read ONLY by the judge view.
              -- In rogue mode it also holds the blocked attempt ("ROGUE: tried to send ... across").
              -- Kept separate so `decisions` stays reason-free.
+chat_messages (id uuid pk, participant_id fk, role text, text text, created_at)   -- PRIVATE
+             -- role: user | assistant. One person's own thread. Read only by that person's chat agent.
+chat_state   (participant_id pk fk, flags jsonb)                                 -- PRIVATE
+             -- chat agent progress: items_done, cap_answered, limits_answered, changed_since_ask
+             -- (both in db/chat-schema.sql; `npm run db:migrate` adds them to an existing database)
 ```
 
 ---
@@ -436,7 +441,7 @@ Split: **Pranav = conversation side** (everything a human sees over iMessage). *
 | Photon setup + messaging adapter (incl. invite to a new number) | Pranav | `src/messaging/` | done; tested both ways on iMessage with two iPhones (see changelog for the shared-pool rules) |
 | Router (keyword × case state) | Pranav | `src/router/` | done (start, invite, JOIN/code, STOP, YES, NO); checked on Neon with `npm run sim:router` and on two iPhones |
 | LLM layer (provider interface, Claude) | Pranav | `src/llm/` | done: Claude Sonnet 5.5 at low effort, `llm().chat()` with tools, `askYesNo()`; `npm run llm:check` passes |
-| Chat agent (LLM): intake + relaxation replies + soft preferences | Pranav | `src/intake/` | not started (stub only). Spec in section 6 |
+| Chat agent (LLM): intake + relaxation replies + soft preferences | Pranav | `src/intake/` | done: intake, soft preferences, relaxation and post-NO replies (updates the existing row, then `runNegotiation`), questions about the agreement. `npm run sim:intake` plays Alex and Sam through real Claude: demo values recorded exactly, deal lands, NO → raise cap → new deal. Median reply ~3.4s |
 | Agreement text, YES/NO confirmation, relaxation prompts | Pranav | `src/conversation/` | agreement + YES + NO (back to the table) + relaxation asks done (`npm run demo:agreement`); handling the reply to a relaxation ask moves into the chat agent |
 | Leak filter (wraps every outbound send) | Pranav | `src/privacy/` | not started (`askYesNo()` for the LLM check is ready in `src/llm/`) |
 | Scaffold, spec, shared contract | Shruti | `src/shared/`, `AGENTS.md` | done: Node + TS via `tsx`, `types.ts`, `contract.ts`, the section 8 demo data with a test; most of sections 4 to 8 (lease/both-move-out, lease-break fee, deposit, shared pets, iMessage choice) |
