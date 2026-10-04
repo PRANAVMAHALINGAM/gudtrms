@@ -13,6 +13,17 @@ const OUTCOME_WORDS: Record<string, string> = {
   pay: 'covering the whole fee',
 };
 
+/**
+ * For things people have feelings about (pets, the apartment), most can't name a price. The agent helps
+ * them get to their own number, but never proposes one: an amount it made up could match the ex's
+ * private value and get blocked by the leak filter, and it would put words in their mouth.
+ */
+const FIND_THEIR_NUMBER =
+  "Most people can't put a price on this, and that's fine; don't push for one up front. If they give a number, record it. " +
+  'If not, help them find it by comparing with things they already valued (their own numbers are fine to say back), ' +
+  'like "would you give up the couch and the TV for this?", or with rough sizes in words ("a few hundred dollars, or more like a couple thousand?"). ' +
+  "Never propose a specific dollar amount yourself. Once they're in the right range, ask for their best guess, and record the number they say.";
+
 function stepInstruction(step: Step | undefined, ex: string): string {
   switch (step?.step) {
     case 'items':
@@ -20,10 +31,15 @@ function stepInstruction(step: Step | undefined, ex: string): string {
     case 'values': {
       const item = step.item;
       if (item.kind === 'lease') {
-        return `Ask what staying in the apartment is worth to them compared with both moving out, in dollars. Positive = they'd like to stay; zero or negative = they'd rather both leave. Record with set_value (${item.name}, keep).`;
+        return `Ask what staying in the apartment on their own (keeping the lease) is worth to them, compared with both moving out. Positive = they'd like to stay. ` +
+          `If they'd rather leave, don't stop at zero: ask how much someone would have to pay them to stay on alone, and record that as a NEGATIVE number ` +
+          `(needing N dollars to stay = -N). How much they want out matters when there's a lease-break fee. ${FIND_THEIR_NUMBER} ` +
+          `Record with set_value (${item.name}, keep).`;
       }
       if (item.kind === 'pet') {
-        return `Ask for ${item.name}, one at a time, what each arrangement is worth to them in dollars: ${step.outcomes.map((o) => `${o} (${OUTCOME_WORDS[o]})`).join('; ')}. Record each with set_value.`;
+        return `Ask for ${item.name}, one arrangement at a time, what it's worth to them: ${step.outcomes.map((o) => `${o} (${OUTCOME_WORDS[o]})`).join('; ')}. ` +
+          `Start with how they feel about ${item.name}, then go arrangement by arrangement (e.g. "how much less is it worth if ${ex} has ${item.name} every other weekend?"). ` +
+          `${FIND_THEIR_NUMBER} Record each with set_value.`;
       }
       if (item.kind === 'subscription') {
         return `Ask what keeping the ${item.name} account (and taking over its bill from the move-out date) is worth to them. Can be negative if it's a burden. Record with set_value (keep).`;

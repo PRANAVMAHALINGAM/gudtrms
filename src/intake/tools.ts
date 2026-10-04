@@ -4,7 +4,7 @@
 
 import type { LlmTool, LlmToolCall } from '../llm/index.ts';
 import { sendTo } from '../privacy/sendTo.ts';
-import type { ItemKind, Outcome } from '../shared/types.ts';
+import type { Item, ItemKind, Outcome } from '../shared/types.ts';
 import { formatMoney } from '../conversation/agreement.ts';
 import {
   addConstraint, addItem, deleteConstraints, deleteSoftPreference, findItem, missingSteps, OUTCOMES_FOR, removeItem, setDeposit,
@@ -138,6 +138,21 @@ export function matchSoftPreference(prefs: string[], query: string): string | un
   return best > 0 && top.length === 1 ? top[0]!.p : undefined;
 }
 
+const bareName = (s: string) => s.trim().toLowerCase().replace(/^(the|our|my|a|an)\s+/, '');
+
+/**
+ * An item of the same kind whose name contains the new one or the other way round ("internet" vs
+ * "Internet contract", "the couch" vs "Couch"), so the other person's agent doesn't add it twice.
+ */
+export function similarItem(items: Item[], name: string, kind: ItemKind): Item | undefined {
+  const n = bareName(name);
+  if (!n) return undefined;
+  return items.find((i) => {
+    const e = bareName(i.name);
+    return i.kind === kind && (e.includes(n) || n.includes(e));
+  });
+}
+
 /** Which tools the agent gets depends on where the case is. */
 export function toolsFor(status: string): LlmTool[] {
   const names =
@@ -187,6 +202,11 @@ export async function runTools(calls: LlmToolCall[], s: MyState): Promise<ToolOu
         if (!name) { fail('empty name'); break; }
         const existing = findItem(s.items, name);
         if (existing && existing.name.toLowerCase() === name.toLowerCase()) { ok(`"${existing.name}" is already on the list`); break; }
+        const similar = similarItem(s.items, name, kind);
+        if (similar) {
+          fail(`"${similar.name}" is already on the list. If that's the same thing, use "${similar.name}". If it's really something else, add it with a more specific name.`);
+          break;
+        }
         if (kind === 'lease' && s.items.some((i) => i.kind === 'lease')) { fail('there is already a lease on the list'); break; }
         const added = await addItem(me.case_id, me.id, name, kind);
         s.items.push(added);
