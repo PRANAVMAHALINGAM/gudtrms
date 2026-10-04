@@ -81,6 +81,16 @@ function handleFor(c: Connection, space: Space, message: Message): string {
   return message.sender?.id ?? '';
 }
 
+let markConnected: () => void = () => {};
+const connected = new Promise<void>((resolve) => {
+  markConnected = resolve;
+});
+
+/** Resolves once startMessaging has connected, for scripts that send before any message arrives. */
+export function whenConnected(): Promise<void> {
+  return connected;
+}
+
 /**
  * Connects to Photon and calls `onMessage` for every inbound text message.
  * Resolves only when the message stream ends.
@@ -89,6 +99,7 @@ export async function startMessaging(onMessage: InboundHandler): Promise<void> {
   if (conn) throw new Error('startMessaging was already called.');
   const c = await connect(messagingProvider());
   conn = c;
+  markConnected();
   // MESSAGING_DEBUG=1 logs connection and event metadata (never message text).
   const debug = process.env.MESSAGING_DEBUG === '1';
   if (debug) console.log(`[messaging] connected via ${c.provider}, waiting for messages`);
