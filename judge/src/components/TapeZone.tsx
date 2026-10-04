@@ -206,13 +206,16 @@ export function TapeZone({ s, view, items, onSelect, selectedId, leftId }: {
 
         {view.past.length > 0 && (
           <div style={{ display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {view.past.map((r) => (
-              <span key={r.round} className="pill num" style={{
-                height: 34, fontSize: 15, background: r.deal ? 'var(--deal-soft)' : 'var(--nodeal-soft)', color: r.deal ? 'var(--deal)' : 'var(--nodeal)',
-              }}>
-                <Icon name={r.deal ? 'check' : 'x'} size={16} /> Round {r.round} · {r.deal ? 'deal' : 'no deal'} · {money(r.totalCents)}
-              </span>
-            ))}
+            {view.past.map((r) => {
+              const good = r.deal && !r.declined;
+              return (
+                <span key={r.round} className="pill num" style={{
+                  height: 34, fontSize: 15, background: good ? 'var(--deal-soft)' : 'var(--nodeal-soft)', color: good ? 'var(--deal)' : 'var(--nodeal)',
+                }}>
+                  <Icon name={good ? 'check' : 'x'} size={16} /> Round {r.round} · {r.declined ? 'deal, then NO' : r.deal ? 'deal' : 'no deal'} · {money(r.totalCents)}
+                </span>
+              );
+            })}
           </div>
         )}
 

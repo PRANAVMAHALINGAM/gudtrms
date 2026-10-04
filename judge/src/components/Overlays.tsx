@@ -7,13 +7,14 @@ import type { Valuation } from '../../../src/shared/types.ts';
 import { money, nameOf, shortDate } from '../data/format.ts';
 import { asItems, fairness, roles, type View } from '../data/timeline.ts';
 import type { ProposalRow, Snapshot } from '../data/types.ts';
-import { Icon, IOU, Keys, Ticker } from './pieces.tsx';
+import { Icon, IOU, Keys, Stamp, Ticker } from './pieces.tsx';
 
 /* ---------- Agreement + the split ---------- */
 
 export function agreementTerms(s: Snapshot, p: ProposalRow): string[] {
-  if (s.agreement?.text?.trim()) {
-    return s.agreement.text.split('\n').map((l) => l.replace(/^[-•]\s*/, '').trim())
+  const sent = s.agreements.find((a) => a.proposal_id === p.id);
+  if (sent?.text?.trim()) {
+    return sent.text.split('\n').map((l) => l.replace(/^[-•]\s*/, '').trim())
       .filter((l) => l && !/^reply yes/i.test(l) && !/^gudtrms agreement/i.test(l));
   }
   const who = (id: string | null) => nameOf(s.participants.find((x) => x.id === id));
@@ -52,7 +53,8 @@ export function agreementTerms(s: Snapshot, p: ProposalRow): string[] {
   return out;
 }
 
-function Signature({ name, signed }: { name: string; signed: boolean }) {
+function Signature({ name, signed, saidNo, closed }: { name: string; signed: boolean; saidNo: boolean; closed: boolean }) {
+  const label = signed ? 'SIGNED · replied YES' : saidNo ? 'replied NO' : closed ? 'not confirmed' : 'not yet';
   return (
     <div style={{ flex: 1 }}>
       <div style={{ height: 76, borderBottom: '3px solid var(--ink)', position: 'relative', display: 'flex', alignItems: 'flex-end' }}>
@@ -63,11 +65,11 @@ function Signature({ name, signed }: { name: string; signed: boolean }) {
           style={{ fontFamily: 'var(--font-hand)', fontSize: 68, lineHeight: 1, color: '#1d3b8c', paddingLeft: 8, rotate: '-3deg' }}>
           {name}
         </motion.span>
-        {!signed && <span style={{ position: 'absolute', left: 8, bottom: 10, fontSize: 18, color: 'var(--ink-2)', fontWeight: 700 }}>waiting for {name} to reply YES…</span>}
+        {!signed && !closed && <span style={{ position: 'absolute', left: 8, bottom: 10, fontSize: 18, color: 'var(--ink-2)', fontWeight: 700 }}>waiting for {name} to reply YES…</span>}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 17, fontWeight: 700, color: 'var(--ink-2)', marginTop: 6 }}>
         <span>{name}</span>
-        <span style={{ color: signed ? 'var(--accent)' : undefined }}>{signed ? 'SIGNED · replied YES' : 'not yet'}</span>
+        <span style={{ color: signed ? 'var(--accent)' : saidNo ? 'var(--nodeal)' : undefined }}>{label}</span>
       </div>
     </div>
   );
@@ -91,7 +93,7 @@ export function AgreementOverlay({ s, view }: { s: Snapshot; view: View }) {
               animate={{ y: 0, scale: 1, rotate: -0.6, opacity: 1 }}
               exit={{ y: -60, scale: 0.92, opacity: 0, transition: { duration: 0.4 } }}
               transition={{ type: 'spring', stiffness: 200, damping: 22 }}
-              aria-label="Final agreement"
+              aria-label={view.declined ? 'Declined agreement' : 'Final agreement'}
               style={{ width: 1040, background: 'var(--surface)', color: 'var(--ink)', borderRadius: 'var(--r-lg)', padding: 'var(--s5)', boxShadow: 'var(--shadow-lg)', position: 'relative' }}>
               <div style={{ position: 'absolute', top: -18, left: 80, width: 160, height: 40, background: 'var(--tape)', rotate: '-4deg', opacity: 0.95 }} />
               <div style={{ position: 'absolute', top: -18, right: 80, width: 160, height: 40, background: 'var(--tape)', rotate: '5deg', opacity: 0.95 }} />
@@ -117,7 +119,20 @@ export function AgreementOverlay({ s, view }: { s: Snapshot; view: View }) {
                 )}
               </div>
               <div style={{ display: 'flex', gap: 40 }}>
-                {[a, b].map((x) => x && <Signature key={x.id} name={nameOf(x)} signed={!!view.signed[x.id]} />)}
+                {[a, b].map((x) => x && (
+                  <Signature key={x.id} name={nameOf(x)} signed={!!view.signed[x.id]} saidNo={view.declined?.byId === x.id} closed={!!view.declined} />
+                ))}
+              </div>
+              {view.declined && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
+                  style={{ marginTop: 22, padding: '12px 18px', borderRadius: 'var(--r-md)', background: 'var(--nodeal-soft)', color: 'var(--nodeal)', fontSize: 20, fontWeight: 700, lineHeight: 1.35 }}>
+                  Back to the table. {view.declined.byId ? `${nameOf(s.participants.find((x) => x.id === view.declined!.byId))} is` : "They're"} asked privately what doesn't work; the other side only hears it wasn't confirmed yet.
+                </motion.div>
+              )}
+              <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
+                <AnimatePresence>
+                  {view.declined && <Stamp key="declined" text="Declined" tone="nodeal" size={96} rotate={-9} />}
+                </AnimatePresence>
               </div>
             </motion.article>
           </motion.div>
