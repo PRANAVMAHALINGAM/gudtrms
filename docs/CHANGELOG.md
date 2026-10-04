@@ -12,6 +12,14 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-04 · Pranav (pitch posters)
+- Two Letter-size pitch posters in the landing page's look, as HTML (the source), PDF (print it) and PNG (preview):
+  - **Pitch poster 1**: the problem in US numbers. 26M Americans live in an unmarried-couple home (Census 2020), 59% of adults 18–44 have cohabited vs 50% ever married (Pew 2019), 49% of cohabitations end within 5 years vs 20% of first marriages (CDC/NCHS, 2002 data), divorce mediation costs $3k–9k, 29% of pet owners have split while sharing a pet (MetLife), no automatic property rights for unmarried partners in most states. Each fact has its source on the poster.
+  - **Pitch poster 2**: how it works. The two private lanes (chat agent + advocate per person), the mediator as code, the protocol gate blocking free text, Knaster's procedure, the advocate's hard veto, and the case 4F7K rounds ($1,615 rejected by Alex's cap, $1,390 accepted, both $235 above fair share).
+- Check before the pitch: "under $1 per case" is the landing page's claim (confirm with `npm run usage`), and the property-rights fact comes from a law-firm site, not a government one.
+- The editable copy lives on a private Claude design canvas (Pranav's account). To re-export, open an HTML file in Chrome, Print, Save as PDF, Letter, no margins.
+- Files: `docs/posters/pitch-poster-1.{html,pdf,png}`, `docs/posters/pitch-poster-2.{html,pdf,png}`
+
 ### 2026-10-04 · Shruti (docs: Photon invite limitation)
 - Wrote down a known limitation: ideally gudtrms texts B the invite itself (even if B has blocked A), but on our Photon Free/Pro shared line it can only text people who've signed up and texted the line once. Otherwise A is told to pass on the case code, which fails if B blocked A. Photon's Business plan (dedicated line) removes the limit. **Decision for the demo:** assume B is already registered (every demo phone signs up and texts in first), and say so in the pitch.
 - Considered and dropped: a `/join/<code>` sign-up link for A to forward. It doesn't help when B has blocked A, which is the case this product is for.
