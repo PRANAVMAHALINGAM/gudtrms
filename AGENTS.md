@@ -48,7 +48,7 @@
 | Dev / fallback | Spectrum **terminal provider** for local dev; **Telegram provider** if the iMessage line is blocked | Same agent code, swap the provider |
 | Language | **TypeScript** (Node or Bun) | Photon's SDK is TypeScript |
 | Database | **Neon** (hosted Postgres) | Plain Postgres, no learning curve |
-| Agents | Advocates + mediator are **plain modules in our backend**, no agent framework | Effort goes into negotiation and privacy |
+| Agents | **Multi-agent, no agent framework.** Each person gets two LLM agents of their own (a chat agent and an advocate agent), each in its own LLM context built only from that person's data. The mediator stays deterministic code. All of it is plain modules in our backend calling `src/llm/` | Real agents doing the talking and judging, while the parts that must be fair and provable (proposals, hard limits, the wire) stay code. See section 6 |
 | Payments | **None** | Not core |
 | LLM | **Claude** via the Anthropic SDK (default `claude-sonnet-5-5`, low effort), behind a small provider interface in `src/llm/` | Grok or Gemini can be added later as one file in `src/llm/` plus `LLM_PROVIDER` in `.env`; nothing else changes |
 
@@ -78,13 +78,13 @@ We want gudtrms itself to invite Person B, because people splitting up often are
 
 ## 4. Core concept and privacy rules (DECIDED)
 
-- Each person gets their **own advocate agent** that knows their private preferences and constraints.
+- Each person gets their **own agents**: a chat agent they text with, and an advocate agent that negotiates for them. Both know only that person's private preferences and constraints.
 - A **mediator** (code) generates proposals. Advocates can only **accept or reject**, and no reasons are shared with the other side.
 - If no deal fits, each person's agent **privately** asks its own human to relax something. Ask both people at the same time so neither is singled out as the blocker.
 - The output is a **written agreement** both people confirm.
 
 ### Privacy rules (non-negotiable)
-1. A person's private data is only readable by **their own** intake agent, **their own** advocate, and the mediator code. The mediator only gets what it needs to build a deal (valuations, move-out windows, deposit contributions). **Payment caps and dealbreakers stay with the advocate only.** **Only exception:** the localhost-only judge view (section 8), a demo tool that runs on fake data and is never deployed.
+1. A person's private data is only readable by **their own** chat agent, **their own** advocate, and the mediator code. Every LLM call is built from one person's rows only; no prompt ever contains both people's private data. The mediator only gets what it needs to build a deal (valuations, move-out windows, deposit contributions). **Payment caps and dealbreakers stay with the advocate only.** **Only exception:** the localhost-only judge view (section 8), a demo tool that runs on fake data and is never deployed.
 2. The only things that cross from one side to the other: the shared item list (names only), each person's deposit contribution (a fact both confirm, not a preference), the mediator's proposals, whether each proposal was accepted or rejected (no reasons), and the final agreement.
 3. **Only the mediator generates proposals.** Advocates cannot propose, ask the other side questions, or send free text across.
 4. **Round cap** on negotiation to prevent probing (proposed: 5 rounds).
@@ -110,7 +110,7 @@ All conversation happens in **1:1 DMs** with the gudtrms number. No group chat b
    - **Items:** what's it worth to you to keep it, in dollars. The agent helps people who can't put a number on it ("would you rather have the couch or $200?").
    - **The lease:** what's it worth to you to stay, compared with both of you moving out? Positive means you'd like to stay. Zero or negative means you'd rather both leave (the rent is too high, or you want a fresh start). If neither person puts a positive number, you **both move out**.
    - **Lease-break fee** (only asked if the lease runs past your move-out window): the fee amount is a fact. It's shown to both people to confirm, like the deposit. Then the agent asks: "how much would someone have to pay you for you to cover the whole fee?" That's your (negative) value for taking it on, and it defaults to the fee amount.
-   - **Pets:** three numbers. What's it worth to you if Biscuit (1) lives with you full-time, (2) lives with you and your ex has Biscuit every other weekend, (3) lives with your ex and you have Biscuit every other weekend.
+   - **Pets:** four numbers. What's it worth to you if Biscuit (1) lives with you full-time, (2) lives with you and your ex has Biscuit every other weekend, (3) splits time 50/50 (one week with you, one week with your ex), (4) lives with your ex and you have Biscuit every other weekend. If someone describes another arrangement ("two weeks on, two off", "70/30"), the chat agent maps it to the closest of these. The mediator only knows these options.
    - **Subscriptions** (Netflix, Spotify, internet): what's it worth to you to keep the account? Whoever keeps it takes over billing from the move-out date. The value can be negative if it's a burden ("I'd pay $50 to not be stuck with the internet contract"). If nobody wants it, it gets cancelled.
    - **Security deposit:** how much of it did you pay? Each person's contribution is shown to the other to confirm. If the numbers don't add up, both agents ask their person to double-check.
    - **Move-out window:** the range of dates that works for you for whoever moves out to be gone (or for both of you to be gone, if you both leave).
@@ -148,6 +148,8 @@ gudtrms agreement · Case 9QJ2
 Reply YES to confirm.
 ```
 
+A 50/50 pet gets this line in the agreement: `- Biscuit splits time 50/50: one week with Jordan, then one week with Riley.`
+
 ---
 
 ## 6. Architecture (PROPOSED)
@@ -160,20 +162,53 @@ Reply YES to confirm.
    +------------------------------------+
    | Router: handle -> participant/case |
    +------------------------------------+
+         |                        |
+         v                        v
+   +---------------+        +---------------+
+   | A's chat      |        | B's chat      |   LLM. Intake, relaxation replies,
+   | agent         |        | agent         |   anything that isn't a keyword.
+   +---------------+        +---------------+   Tools write only its own person's rows.
+         |                        |
+         v (A's rows only)        v (B's rows only)
+   +---------------+        +---------------+
+   | A's advocate  |        | B's advocate  |   LLM. Judges each proposal for its person.
+   | agent         |        | agent         |   Hard checks are code (a veto it can't override).
+   +---------------+        +---------------+
+         ^   |                    ^   |
+         |   | ACCEPT/REJECT      |   | ACCEPT/REJECT
+         |   v                    |   v
+   +-------------------------------------------+
+   | Protocol gate (code): only ACCEPT/REJECT  |   the "wire". Anything else is blocked
+   | crosses. Free text is blocked + logged    |   and logged to leak_events
+   +-------------------------------------------+
+         ^                        ^
+         | proposals              | proposals
+   +-------------------------------------------+
+   | Mediator (deterministic code)             |   sees valuations, windows, deposits.
+   +-------------------------------------------+   Never caps or dealbreakers.
          |
-         +--> Intake agent (LLM, per person) -> structured private data -> Neon
-         |
-         +--> Mediator (deterministic code): generates proposals
-         |        <-> Advocate A (sees only A's private data)
-         |        <-> Advocate B (sees only B's private data)
-         |
-         +--> Leak filter (every outbound message)
-         |
-         +--> Agreement writer -> both DMs
+         +--> Agreement writer (fixed template) -> both DMs
+         +--> Leak filter (every outbound message, incl. every chat-agent reply)
 
    Judge view (localhost only, read-only from Neon, polls every ~1s):
    three lanes (Advocate A | what crosses | Advocate B) + X-ray toggle. See section 8.
 ```
+
+**Agents at a glance.** Six agents per case (two per person, plus the mediator and the leak checker). Every LLM agent runs in its own context:
+
+| Agent | One per | Kind | Talks to | Can do | Owner |
+|---|---|---|---|---|---|
+| Chat agent | person | LLM | its own person only | record items, values, deposit, window, cap, dealbreakers; update a constraint after a relaxation ask; answer questions | Pranav (`src/intake/`) |
+| Advocate agent | person | LLM, with code checks as a veto | nobody directly. It sends ACCEPT/REJECT across the wire, and a `RelaxAsk` to its own person's chat agent | accept, reject, write its inner monologue to `advocate_notes` | Shruti (`src/engine/`) |
+| Mediator | case | deterministic code | both advocates, through the wire | propose deals in ranked order | Shruti (`src/engine/`) |
+| Leak checker | case | LLM yes/no | nobody (checks outbound text) | block a message | Pranav (`src/privacy/`) |
+
+What crosses between agents:
+- **Same person, chat agent → advocate:** Neon rows (that person's valuations and constraints). The advocate never reads the chat transcript.
+- **Same person, advocate → chat agent:** a structured `RelaxAsk` (e.g. `{ kind: 'max_payment', suggestedCents }`). The chat agent turns it into a message and handles the reply.
+- **Across people:** only through the protocol gate, and only ACCEPT/REJECT. The chat agents never talk to each other or to the other person's advocate.
+
+Why the mediator stays code: proposals must be fair, explainable on the math panel, and reproducible, and the section 8 demo depends on the exact round order. An LLM mediator would also need to see both people's data in one context, which rule 1 forbids.
 
 **Router:** maps an incoming handle to a participant and case, then routes by **keyword + case state**. A keyword only counts in the right state; otherwise the message goes to that person's agent as normal chat.
 
@@ -185,9 +220,13 @@ Reply YES to confirm.
 | `YES` | case is `awaiting_confirmation` **and** the agreement has been sent to this person | it's just an answer to whatever their agent asked |
 | `NO` | same as `YES` | it's just an answer to whatever their agent asked |
 
-Everything else goes to that person's intake agent or relaxation prompt.
+Everything else goes to that person's chat agent.
 
-**Intake agent (LLM, one conversation per participant):** turns chat into structured data (items, valuations per outcome, deposit contribution, move-out window, hard constraints). Writes only its own participant's rows. Never reads the other person's data.
+**Chat agent (LLM, one per participant):** the only agent a person talks to. Uses `llm().chat()` with tools (`src/llm/`).
+- **Intake:** turns chat into structured data (items, valuations per outcome, deposit contribution, move-out window, hard constraints) through tool calls. Writes only its own participant's rows. Never reads the other person's data. Sets `intake_done`, then calls `onIntakeDone(caseId)`.
+- **Soft preferences:** anything that matters to the person but isn't a number or a dealbreaker ("I don't want to do handoffs with them") is saved as a `constraints` row of kind `other` with a short text, so their advocate can weigh it.
+- **Relaxation:** sends the advocate's `RelaxAsk` as a message, handles the reply as a conversation, and if the person agrees, **updates** the existing constraint row through a tool, then calls `runNegotiation(caseId)` again.
+- Its system prompt is built from its own person's rows plus the shared item list. State lives in Neon, not in the LLM.
 
 **Mediator (deterministic code):** sees valuations, move-out windows, and deposit contributions. It does **not** see payment caps or dealbreakers; those live only in each advocate. That's why a proposal can be rejected, and why the advocates do real work.
 
@@ -195,11 +234,11 @@ Everything else goes to that person's intake agent or relaxation prompt.
 - Stuff and subscriptions: **A keeps** or **B keeps**. For a subscription, if both values are <= 0, it's **cancelled**.
 - The lease: **A stays**, **B stays**, or **both move out**. "Both move out" is worth $0 to each person (it's the baseline the stay values are measured against), so with no fee it wins whenever neither person values staying above $0.
 - Lease-break fee: an item that **only exists if both move out**, with outcomes **A pays** or **B pays**. Like any other item, it goes to whoever values it highest (i.e. minds paying it least), and the buyout compensates them. Because its value is negative, it drags down the "both move out" option. The mediator picks both moving out only if it's still the best total even after the fee. So "both move out with fee" competes against "A stays" and "B stays" as a lease outcome, valued at the best fee assignment.
-- Pets: **A full-time**, **A + B every other weekend**, **B + A every other weekend**, **B full-time**. The person with every-other-weekend gets their "visits" value, and the full-time person gets nothing from the other side.
+- Pets: **A full-time**, **A + B every other weekend**, **50/50 (week on, week off)**, **B + A every other weekend**, **B full-time**. The person with every-other-weekend gets their "visits" value, the full-time person gets nothing from the other side, and with 50/50 each person gets their own "split" value.
 
 *Allocation* (Knaster's procedure, generalized to outcomes):
 - For each item, pick the outcome with the **highest total value** (A's value + B's value). For a plain item, that's just "whoever values it more."
-- Fair shares: `F_A = (sum of A's keep / full-time values) / 2`, same for `F_B`.
+- Fair shares: `F_A = (sum of A's keep / full-time values) / 2`, same for `F_B`. For a pet, use A's **highest** pet value. That's normally full-time, but someone may value 50/50 above full-time (they want shared care, not sole care).
 - `W_A`, `W_B` = what each received, by their own valuations. Excess: `E_A = W_A - F_A`, `E_B = W_B - F_B`.
 - Surplus `S = E_A + E_B` (always >= 0 for the best allocation).
 - **Buyout from A to B = `(E_A - E_B) / 2`** (same as `E_A - S/2`; negative means B pays A). Both end up exactly `S/2` above their fair share.
@@ -212,17 +251,22 @@ Everything else goes to that person's intake agent or relaxation prompt.
 
 *Rounds.* The mediator ranks candidate allocations by total value (the best one first, then single-item changes, and so on) and proposes them in order, recomputing the buyout for each. A rejection moves to the next candidate. After the round cap, the case goes to `needs_relaxation`. Never sends free text across sides.
 
-**Advocates (one per person):**
-- See only their own person's private data.
-- **Allowed moves:** `ACCEPT`, `REJECT` (no reason crosses over), and privately asking their own human to relax a constraint.
-- v1 logic is **deterministic**. Accept only if all of these hold:
-  - total payment (buyout + deposit payback, if any) is under the person's cap
-  - every dealbreaker is met (for a pet, "lives with me" means full-time or primary with ex on weekends)
-  - the move-out date is inside the person's window
-  - the proposal gives at least their fair share by their own valuations (deposit excluded)
-- The LLM only writes messages to its own person.
-- **Relaxation:** when stuck, the advocate looks at the rejected proposals and asks its person for the smallest change that would have made one pass (e.g. "would you go up to $1,615?").
-- For every decision, writes a one-line **inner monologue** to `advocate_notes` (e.g. "Total $1,615 is over my $1,600 cap. REJECT"). Only the judge view reads it. It is never sent to anyone.
+**Advocate agents (LLM, one per person):**
+- See only their own person's private data: valuations, constraints (including `other` soft preferences), and the shared item list. Never the chat transcript, never the other side's data (`assertOwnDataOnly` throws).
+- **Allowed moves:** `ACCEPT`, `REJECT` (no reason crosses over), and handing its own chat agent a `RelaxAsk`.
+- **How it decides each proposal** (one LLM call per proposal, effort low):
+  1. Its prompt has the proposal terms and its own person's data. Tools: `check_proposal`, `accept`, `reject`, and `send_to_other_side(text)`.
+  2. `check_proposal` runs the deterministic checks (today's `decide()` in `src/engine/advocate.ts`). They are a **hard veto**: `accept` is refused unless all of these hold:
+     - total payment (buyout + deposit payback, if any) is under the person's cap
+     - every dealbreaker is met (for a pet, "lives with me" means full-time or primary with ex on weekends; 50/50 does **not** count)
+     - the move-out date is inside the person's window
+     - the proposal gives at least their fair share by their own valuations (deposit excluded)
+  3. If every check passes, the agent may still `reject`, but only by naming one of its person's `other` soft preferences that the proposal goes against. Otherwise it accepts. This is where the LLM adds judgment the code can't.
+  4. It writes its one-line **inner monologue** to `advocate_notes` in its own words (e.g. "$1,615 is $15 over Alex's cap. Can't take it. REJECT"). Only the judge view reads it. It is never sent to anyone.
+  5. `send_to_other_side` exists on purpose: everything the agent sends goes through the protocol gate, which lets only ACCEPT/REJECT through. Free text is blocked and logged (rogue mode, section 8).
+- **Fallback:** if the LLM call fails, times out (~10s), or refuses, the advocate uses the deterministic `decide()` result and notes that it did. A negotiation never stalls on the LLM.
+- **Relaxation:** when stuck, `relaxAsk()` (code) finds the smallest change that would have made a rejected proposal pass (e.g. "would you go up to $1,615?"), and the advocate hands it to its own chat agent. The ask is computed by code so it never reveals the other side's numbers.
+- `ADVOCATE_MODE=rules` turns the LLM off and uses `decide()` alone (same as v1), for tests and as a demo safety switch.
 
 **Leak filter (every outbound message):**
 There are two kinds of outbound messages. **Proposals and the agreement** are filled into fixed templates from structured data, with no LLM text. **Agent messages** are LLM text sent to the agent's own person.
@@ -257,19 +301,22 @@ valuations   (participant_id fk, item_id fk, outcome text, value_cents int,
               pk(participant_id, item_id, outcome))                         -- PRIVATE
              -- outcome: 'keep' for item | lease | subscription (lease and subscription may be negative;
              --          for the lease, 'keep' = value of staying vs. both moving out)
-             --          'full' | 'primary' | 'visits' for pets
+             --          'full' | 'primary' | 'split' | 'visits' for pets (split = 50/50, week on / week off)
              --          'pay' for lease_break_fee (negative: what taking on the whole fee costs you)
 deposit_contributions (case_id fk, participant_id fk, amount_cents int, pk(case_id, participant_id))
              -- NOT private: shown to the other person to confirm.
 constraints  (id uuid pk, participant_id fk, kind text, value jsonb)        -- PRIVATE, advocate only
              -- kind: max_payment_cents | must_keep_item | move_out_window | other
+             -- other: { text } a soft preference the chat agent heard ("no handoffs with them");
+             --        only that person's advocate agent reads it
              -- move_out_window is also read by the mediator; the rest are not.
 proposals    (id uuid pk, case_id fk, round int, allocation jsonb, transfer jsonb, move_out_date date,
               status text, created_at)
-             -- allocation: { item_id: { to: participant_id | null, weekends: participant_id | null } }
+             -- allocation: { item_id: { to: participant_id | null, weekends: participant_id | null, split?: true } }
              --   to = null means cancelled (subscription) or both move out (lease);
              --   for lease_break_fee, to = who pays the landlord (only present when both move out);
              --   weekends set only for shared pets
+             --   split: true only for a 50/50 pet (then to = null and weekends = null)
              -- transfer: { from, to, buyout_cents, deposit_cents, total_cents }
              --   deposit_cents = 0 when both move out; the refund split goes in deposit_split
              -- deposit_split (in transfer): { participant_id: share_pct } when both move out, else null
@@ -291,7 +338,8 @@ advocate_notes (id uuid pk, case_id fk, proposal_id fk, participant_id fk, note 
 
 These must exist for the demo:
 - **A conflict.** The demo must show at least one `REJECT` before the deal lands, so judges see the advocates actually protect their person. See the scenario below.
-- **Rogue mode** (flag on one advocate): it tries to send a free-text question across ("what's Alex's max payment?"). The protocol gate (`src/engine/protocol.ts`) rejects the message type and logs the reason (never the content) to `leak_events`. Turn it on with `ROGUE_MODE=B` (or `A`).
+- **Rogue mode** (flag on one advocate): it tries to send a free-text question across ("what's Alex's max payment?"). The protocol gate (`src/engine/protocol.ts`) rejects the message type and logs the reason (never the content) to `leak_events`. Turn it on with `ROGUE_MODE=B` (or `A`). With LLM advocates, the rogue advocate's prompt tells it to find out the other side's limit, and it writes its own question with `send_to_other_side`. The question isn't scripted, but the gate blocks it the same way. That's the pitch: **the agents are smart, the wire is dumb.** With `ADVOCATE_MODE=rules` it falls back to today's fixed question.
+- **The demo still hits round 1 REJECT, round 2 ACCEPT with LLM advocates.** Alex's round 1 reject comes from the cap check, which the LLM can't override. Sam has no soft preferences in the seed, so Sam accepts both. Re-run `npm run demo:negotiate` after any prompt change.
 
 ### Demo scenario (fake data)
 Use this seed data so the demo hits a reject in round 1 and agrees in round 2. The math is checked; if you change a number, recheck the rounds.
@@ -301,6 +349,7 @@ Use this seed data so the demo hits a reject in round 1 and agrees in round 2. T
 | Apartment (lease) | $1,500 | $1,410 |
 | Biscuit: full-time with me | $900 | $400 |
 | Biscuit: with me, ex every other weekend | $800 | $350 |
+| Biscuit: 50/50, week on, week off | $500 | $300 |
 | Biscuit: with ex, me every other weekend | $300 | $250 |
 | Couch | $200 | $300 |
 | TV | $250 | $200 |
@@ -310,7 +359,7 @@ Use this seed data so the demo hits a reject in round 1 and agrees in round 2. T
 | Max total payment *(advocate only)* | $1,600 | none |
 | Dealbreaker *(advocate only)* | Biscuit lives with me | none |
 
-Fair shares: `F_A = (1500+900+200+250+0)/2 = $1,425`, `F_B = (1410+400+300+200+0)/2 = $1,155`. Biscuit goes to "Alex + Sam every other weekend" (total $1,050, the best of the four). Spotify is cancelled. Move-out date is Nov 30.
+Fair shares: `F_A = (1500+900+200+250+0)/2 = $1,425`, `F_B = (1410+400+300+200+0)/2 = $1,155`. Biscuit goes to "Alex + Sam every other weekend" (total $1,050, the best of the five). 50/50 totals $800 ($250 below the best), so it can't show up before round 3 and the two rounds below don't change. Keep the 50/50 total under $1,000 or it ties with round 2. Spotify is cancelled. Move-out date is Nov 30.
 
 | Round | Allocation | Buyout | + Deposit | Total | Alex | Sam |
 |---|---|---|---|---|---|---|
@@ -386,14 +435,18 @@ Split: **Pranav = conversation side** (everything a human sees over iMessage). *
 |---|---|---|---|
 | Photon setup + messaging adapter (incl. invite to a new number) | Pranav | `src/messaging/` | done; tested both ways on iMessage with two iPhones (see changelog for the shared-pool rules) |
 | Router (keyword × case state) | Pranav | `src/router/` | done (start, invite, JOIN/code, STOP, YES, NO); checked on Neon with `npm run sim:router` and on two iPhones |
-| Intake agent (LLM) | Pranav | `src/intake/` | not started (stub only). LLM layer ready: `src/llm/`, Claude Sonnet 5.5, `npm run llm:check` passes |
-| Agreement text, YES confirmation, relaxation prompts | Pranav | `src/conversation/` | agreement + YES + relaxation asks done (`npm run demo:agreement`); handling the reply to a relaxation ask not started |
+| LLM layer (provider interface, Claude) | Pranav | `src/llm/` | done: Claude Sonnet 5.5 at low effort, `llm().chat()` with tools, `askYesNo()`; `npm run llm:check` passes |
+| Chat agent (LLM): intake + relaxation replies + soft preferences | Pranav | `src/intake/` | not started (stub only). Spec in section 6 |
+| Agreement text, YES/NO confirmation, relaxation prompts | Pranav | `src/conversation/` | agreement + YES + NO (back to the table) + relaxation asks done (`npm run demo:agreement`); handling the reply to a relaxation ask moves into the chat agent |
 | Leak filter (wraps every outbound send) | Pranav | `src/privacy/` | not started (`askYesNo()` for the LLM check is ready in `src/llm/`) |
-| Neon schema, DB client, demo seed | Shruti | `db/`, `src/db/` | done, checked on Neon |
-| Mediator | Shruti | `src/engine/` | done, tested |
-| Advocates, `negotiate()`, rogue mode | Shruti | `src/engine/` | done, checked on Neon |
-| Judge view | Shruti | `judge/` | done: mock + live checked (`npm run judge`) |
-| Neon RLS + demo-seed branch, Notability screenshots | Shruti | | branches made (`production` kept clean); RLS + demo seed not started |
+| Scaffold, spec, shared contract | Shruti | `src/shared/`, `AGENTS.md` | done: Node + TS via `tsx`, `types.ts`, `contract.ts`, the section 8 demo data with a test; most of sections 4 to 8 (lease/both-move-out, lease-break fee, deposit, shared pets, iMessage choice) |
+| Neon project, schema, DB client, demo seed | Shruti | `db/`, `src/db/` | done: project `gudtrms` with branches `production` (kept clean), `shruti`, `pranav`; `npm run db:reset` loads case 4F7K; dates come back as `YYYY-MM-DD` strings |
+| Mediator | Shruti | `src/engine/mediator.ts` | done, tested: every item kind, tie rule (cancelled / both move out win ties), reproduces the section 8 rounds exactly |
+| Advocate rules, `negotiate()`, rogue mode, protocol gate | Shruti | `src/engine/` | done, checked on Neon: hard checks + notes, relaxation asks, 5-round cap, window-stretch ask, concurrency guard, `ROGUE_MODE`, `DEMO_PACING_MS`, `npm run demo:negotiate` |
+| Advocate agents (LLM) on top of the rules | Shruti | `src/engine/` | not started. Spec in section 6; the rules above become its `check_proposal` tool and fallback |
+| Judge view | Shruti | `judge/` | done: mock (runs the real engine in the browser) + live (polls Neon read-only, 127.0.0.1 only), checked at four screen sizes (`npm run judge`). To do: show an agreement whose proposal is `superseded` after a NO as declined |
+| Neon RLS + demo-seed branch, Notability screenshots | Shruti | | branches made; RLS + demo seed not started |
+| 50/50 pet option | Shruti: `Outcome` type, mediator, values, advocate dealbreaker, demo seed, judge view · Pranav: intake question, agreement line | `src/shared/`, `src/engine/`, `judge/`, `src/intake/`, `src/conversation/` | spec only, not started. Build **after** the ~3 AM full run, since it changes the shared allocation shape |
 | .Tech domain | Pranav | | not started |
 | Pitch + Devpost + backup video | Both | | not started |
 
@@ -404,5 +457,6 @@ Split: **Pranav = conversation side** (everything a human sees over iMessage). *
   - Relaxing a constraint means **updating** that person's existing constraint row, not inserting a second one.
   - In `transfer`, `buyout_cents` and `deposit_cents` can have opposite signs (e.g. the buyout goes one way and the deposit payback the other); `total_cents` is the net and is never negative. See `Transfer` in `src/shared/types.ts`.
 - `sendTo(participantId, text)`. Pranav implements it, and it runs the leak filter first. Every outbound message goes through it.
+- With LLM advocates, `negotiate()` keeps the same signature and return shape. The `asks` it returns are what each advocate hands its own chat agent.
 
 **Sync points:** ~11 PM Sat, a seeded case runs through `negotiate()` and the agreement prints via the terminal provider. ~3 AM Sun, a full run on two iPhones with the judge view open.

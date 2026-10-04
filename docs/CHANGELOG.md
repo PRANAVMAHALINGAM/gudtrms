@@ -12,6 +12,25 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 
 ---
 
+### 2026-10-03 23:05 ET · Shruti
+- **Pets can be split 50/50 (spec only, build after the ~3 AM full run).** Fifth pet outcome: week on, week off. Each person values it (new valuation outcome `split`), and the allocation marks it `{ to: null, weekends: null, split: true }`.
+- Rules: 50/50 does **not** satisfy a "lives with me" dealbreaker. A pet's fair share uses the person's highest pet value (normally full-time). Other arrangements people describe ("70/30") get mapped to the closest of the five by the chat agent; the mediator only knows these.
+- Demo seed gets Biscuit 50/50 = Alex $500, Sam $300 (total $800, $250 below the best). Rounds 1 and 2 stay exactly as before; the 50/50 total must stay under $1,000 or it ties with round 2.
+- **Pranav:** intake asks four pet numbers instead of three, and the agreement writer needs the line "Biscuit splits time 50/50: one week with X, then one week with Y." Not urgent, after the full run.
+- Files: `AGENTS.md` (sections 5, 6, 7, 8, 11)
+
+### 2026-10-03 22:59 ET · Shruti
+- **Agents are now real LLM agents (spec only, no code yet).** Until now, the "agents" were plain functions: `decide()` called with each person's filtered data. AGENTS.md now has a multi-agent design:
+  - **Two LLM agents per person, each in its own LLM context:** a **chat agent** (intake, relaxation replies, soft preferences; Pranav) and an **advocate agent** (judges each proposal; Shruti). No prompt ever holds both people's private data (privacy rule 1).
+  - **The advocate decides through tools.** `check_proposal` runs today's deterministic checks as a **hard veto** it can't override. If every check passes it may still reject, but only by naming one of its person's `other` soft preferences. It writes its own inner monologue. If the LLM fails, times out, or refuses, it falls back to `decide()`. `ADVOCATE_MODE=rules` turns the LLM off.
+  - **The mediator stays code** (fair, reproducible, and an LLM mediator would need both people's data in one context).
+  - **Rogue mode gets real:** the rogue advocate writes its own question with `send_to_other_side`, and the protocol gate still blocks it. Pitch line: "the agents are smart, the wire is dumb."
+  - The demo stays the same: Alex's round 1 reject comes from the cap veto, and Sam has no soft preferences in the seed, so Sam accepts both rounds.
+- `constraints` kind `other` now holds a soft preference `{ text }`, read only by that person's advocate.
+- **Section 3's DECIDED "Agents" row changed** from "plain modules" to "multi-agent, no framework". Pranav: please check the chat agent part (section 6) since it reshapes `src/intake/`. Handling the reply to a relaxation ask now sits with the chat agent.
+- **Section 11 brought up to date** with everything on the negotiation side (scaffold and spec, Neon branches, mediator, advocate rules, `negotiate()`, rogue mode, judge view), plus new rows for the LLM layer, the chat agent, and the advocate agents (not started).
+- Files: `AGENTS.md` (sections 3, 4, 6, 7, 8, 11)
+
 ### 2026-10-03 22:40 ET · Pranav
 - **AGENTS.md brought up to date with what's done** (docs only, no code):
   - Section 10: checked off "Photon setup" (connected, keys in `.env`, tested on two iPhones; email-only handles don't work) and "does `im.space.create` reach a brand-new number on the free plan" (no: only project users who have texted their line once; Business plan has no allowlist).
