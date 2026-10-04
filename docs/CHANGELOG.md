@@ -17,7 +17,8 @@ Newest on top. Add an entry after **every** change (code or decisions). If git f
 - Every claim is checkable in the repo (59 tests pass, rounds match AGENTS.md section 8).
 - **Cost claim measured:** one full `sim:intake` run (real Claude, fake handles, includes a NO and a re-negotiation) cost **$0.2987**: chat 21 calls $0.2161, leak filter 19 calls $0.0572, advocates 6 calls $0.0254. So "well under $1 per case" holds; the README says about $0.30. It's one run, so re-measure if the prompts or model change. (The sim deletes its rows at the end, so I ran a temporary copy that printed `llm_usage` first, then deleted the copy. Nothing in the repo changed.)
 - README hook is now a 1920x1080 screenshot of the judge view (mock mode, both sides redacted, step 11 "The agreement goes out to both"). Pitch poster 2 moved down to "How it works". The shot was taken with headless Chrome against `npm run judge`; to retake it, open the judge view, leave X-ray off and click "Step 11".
-- Files: `docs/screenshots/judge-view.png`
+- Branding in the README: a 🤝 in the title, "say it like good terms" under it, and the catchphrase **"Part on gudtrms."** used four times (tagline, end of "What gudtrms does", end of the Alex & Sam rounds, sign-off). It matches the judge view's finale ("Parted on gudtrms."). Don't add more; it stops being a catchphrase if it's everywhere.
+- Files: `docs/screenshots/judge-view.png`, `README.md`
 - Files: `README.md`
 
 ### 2026-10-04 · Pranav (pitch posters)

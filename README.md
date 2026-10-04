@@ -1,10 +1,12 @@
 <div align="center">
 
-# gud<em>trms</em>
+# 🤝 gud<em>trms</em>
+
+**/ɡʊd tɜːrmz/ · say it like "good terms"**
 
 ### Two exes. Two AI advocates. One deal, and nobody's secrets leak.
 
-**An iMessage mediator for breakups, where the agents talk and the secrets don't.**
+**An iMessage mediator for breakups, where the agents talk and the secrets don't. Part on gudtrms.**
 
 [**Watch the agents negotiate live →**](https://gudtrms.tech/demo) · [Try it on iMessage](https://gudtrms.tech) · [How it works](#how-it-works) · [Run it yourself](#run-it-in-60-seconds)
 
@@ -35,7 +37,7 @@ And the people who most need a neutral go-between are often the ones who can't t
 
 ## What gudtrms does
 
-You text **START** to gudtrms on iMessage. That's it. No app, no account, no group chat with your ex.
+The name is the mission: breaking up on **good terms**, even when you can't stand to talk. You text **START** to gudtrms on iMessage. That's it. No app, no account, no group chat with your ex.
 
 1. **You get your own advocate.** Tell it the truth: what the couch is really worth to you, the most you could pay, the dealbreaker you'd never say out loud. It's never shown to your ex. Not by policy, but by how the system is built.
 2. **Your ex gets theirs.** gudtrms invites them directly, so you never have to contact them.
@@ -44,6 +46,8 @@ You text **START** to gudtrms on iMessage. That's it. No app, no account, no gro
 
 > *"Nothing fits yet. Would you go up to $700? Totally fine to say no. Nobody will know you were asked."*
 > If the agents get stuck, each person is privately asked to flex at the same moment, so neither of you is ever the one who blocked the deal.
+
+No lawyers, no shouting match, no "who gets the couch" text thread. 🤝 *Part on gudtrms.*
 
 ## Why it's different
 
@@ -69,7 +73,7 @@ Our demo couple, Alex and Sam, split a lease, a dog named Biscuit, a couch and a
 | 1 | Alex keeps the apartment, Biscuit and the TV | $1,615 | ❌ **REJECT** (over a limit Sam can't see) | ✅ ACCEPT |
 | 2 | The TV moves to Sam | **$1,390** | ✅ ACCEPT | ✅ ACCEPT |
 
-Two rounds, one deal, and both end up exactly **$235 above their fair share**. Sam never learned why round 1 failed. Open the [live judge view](https://gudtrms.tech/demo) and flip the **X-ray toggle**: each advocate's private reasoning appears on the sides, and the only thing in the middle is what actually crossed.
+Two rounds, one deal, and both end up exactly **$235 above their fair share**. Sam never learned why round 1 failed. Parted on gudtrms. Open the [live judge view](https://gudtrms.tech/demo) and flip the **X-ray toggle**: each advocate's private reasoning appears on the sides, and the only thing in the middle is what actually crossed.
 
 Turn on **rogue mode** and one advocate tries to ask "what's the most Alex would pay?". The gate blocks it, logs the attempt (never the content), and the middle lane flashes red.
 
@@ -173,6 +177,14 @@ Prefer containers? `docker compose up -d --build`, plus `--profile judge` for th
 |---|---|
 | **Pranav Mahalingam** ([@PRANAVMAHALINGAM](https://github.com/PRANAVMAHALINGAM)) | The conversation side: iMessage, router, chat agents, leak filter, landing page, Docker and hosting |
 | **Shruti Jayaraman** ([@shrujaya](https://github.com/shrujaya)) | The negotiation side: mediator, advocate agents, protocol gate, database, judge view |
+
+<div align="center">
+
+### 🤝 Part on gudtrms.
+
+*gudtrms = "good terms"*
+
+</div>
 
 ---
 
